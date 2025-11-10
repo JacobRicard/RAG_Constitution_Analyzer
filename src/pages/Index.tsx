@@ -1,23 +1,79 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConstitutionChat } from "@/components/ConstitutionChat";
 import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentManager } from "@/components/AmendmentManager";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager">("chat");
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    toast({
+      title: "Signed out",
+      description: "You have been signed out successfully",
+    });
+  };
+
+  const handleSignIn = () => {
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <header className="bg-gradient-hero text-white py-16 px-6 shadow-elegant">
         <div className="container mx-auto max-w-6xl">
-          <div className="flex items-center justify-center mb-4">
-            <BookOpen className="h-12 w-12 mr-4" />
-            <h1 className="text-4xl md:text-5xl font-bold">MUSG Constitution</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <BookOpen className="h-12 w-12 mr-4" />
+              <h1 className="text-4xl md:text-5xl font-bold">MUSG Constitution</h1>
+            </div>
+            {user ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSignOut}
+                className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSignIn}
+                className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                <LogIn className="h-4 w-4" />
+                Sign In
+              </Button>
+            )}
           </div>
           <p className="text-xl text-center text-white/90 max-w-3xl mx-auto">
             AI-Powered Analysis of the Marquette University Student Government Constitution
