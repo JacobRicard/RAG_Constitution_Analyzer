@@ -1,32 +1,78 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export const ConstitutionViewer = () => {
+  const { data: amendments = [] } = useQuery({
+    queryKey: ['amendments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('amendments')
+        .select('*')
+        .eq('status', 'approved')
+        .order('approved_at', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   return (
     <Card className="p-8">
-      <div className="flex flex-col items-center justify-center space-y-6 min-h-[400px]">
-        <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10">
-          <FileText className="w-10 h-10 text-primary" />
-        </div>
-        
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold text-foreground">MUSG Constitution 2025-2026</h2>
-          <p className="text-muted-foreground max-w-md">
-            Download the complete MUSG Constitution including all governing documents and amendments.
-          </p>
+      <div className="flex flex-col space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">MUSG Constitution 2025-2026</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Full 50-page document with all articles, sections, and governing documents
+            </p>
+          </div>
+          <Button asChild size="lg" className="gap-2">
+            <a href="/musg-constitution.pdf" download="MUSG-Constitution-2025-2026.pdf">
+              <Download className="h-5 w-5" />
+              Download PDF
+            </a>
+          </Button>
         </div>
 
-        <Button asChild size="lg" className="gap-2">
-          <a href="/musg-constitution.pdf" download="MUSG-Constitution-2025-2026.pdf">
-            <Download className="h-5 w-5" />
-            Download Constitution (PDF)
-          </a>
-        </Button>
+        {amendments.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-xl font-bold mb-4 text-primary">APPROVED AMENDMENTS</h3>
+              <div className="space-y-4">
+                {amendments.map((amendment, index) => (
+                  <div key={amendment.id} className="p-6 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Badge variant="secondary" className="text-sm">
+                        Amendment {index + 1}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Approved: {new Date(amendment.approved_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-lg mb-3 text-foreground">
+                      {amendment.title}
+                    </h4>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                      {amendment.amendment_text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
-        <p className="text-sm text-muted-foreground">
-          Full 50-page document with all articles, sections, and governing documents
-        </p>
+        {amendments.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No amendments have been approved yet.</p>
+          </div>
+        )}
       </div>
     </Card>
   );
