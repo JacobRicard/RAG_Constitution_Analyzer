@@ -59,6 +59,8 @@ Officers can be removed for cause through specific procedures involving the Sena
 
 ARTICLE X – CONSTITUTIONAL AMENDMENTS
 Amendments require a two-thirds vote of the Senate and approval from the Vice President for Belonging and Student Affairs.
+
+The complete MUSG Governing Documents also include By-Laws (detailed organizational rules, officer descriptions, eligibility requirements, attendance policies, removal procedures), Budget Approval Procedures, Election Rules (registration, campaigning, voting procedures), Financial Policies (student organization funding, reserve fund, budget processes), Senate Standing Rules, and various selection procedures for speakers and student representation.
 `;
 
 serve(async (req) => {
