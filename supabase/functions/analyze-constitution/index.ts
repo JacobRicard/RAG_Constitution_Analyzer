@@ -8,6 +8,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting map: IP -> { count, resetTime }
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+// Clean up old entries every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, data] of rateLimiter.entries()) {
+    if (now > data.resetTime) {
+      rateLimiter.delete(ip);
+    }
+  }
+}, 3600000);
+
 const constitutionContext = `
 MARQUETTE UNIVERSITY STUDENT GOVERNMENT CONSTITUTION
 Last Amended: March 15, 2025
@@ -231,6 +244,32 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting: 20 requests per minute per IP
+    const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const now = Date.now();
+    const limit = rateLimiter.get(clientIP);
+
+    if (limit) {
+      if (now < limit.resetTime) {
+        if (limit.count >= 20) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Rate limit exceeded. Please wait a moment before making another request.' 
+            }),
+            { 
+              status: 429, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        limit.count++;
+      } else {
+        rateLimiter.set(clientIP, { count: 1, resetTime: now + 60000 });
+      }
+    } else {
+      rateLimiter.set(clientIP, { count: 1, resetTime: now + 60000 });
+    }
+
     const { question, type } = await req.json();
     
     if (!question) {

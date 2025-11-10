@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2, Upload } from "lucide-react";
+import { Pencil, Trash2, Upload, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { amendmentSchema } from "@/lib/validation";
 import {
   Dialog,
   DialogContent,
@@ -23,29 +25,78 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 export const AmendmentManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [uploadPassword, setUploadPassword] = useState("");
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null; password: string }>({
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null }>({
     open: false,
     id: null,
-    password: "",
   });
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     id: string | null;
     title: string;
     text: string;
-    password: string;
   }>({
     open: false,
     id: null,
     title: "",
     text: "",
-    password: "",
   });
 
-  const { data: amendments = [], isLoading } = useQuery({
+  useEffect(() => {
+    // Check authentication and admin role
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        navigate('/auth');
+        return;
+      }
+
+      setUser(session.user);
+
+      // Check if user has admin role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (!roleData) {
+        toast({
+          title: "Access Denied",
+          description: "You do not have admin privileges. Please contact a committee chair.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+
+      setIsAdmin(true);
+      setLoading(false);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session?.user) {
+          navigate('/auth');
+        } else {
+          setUser(session.user);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
+
+  const { data: amendments = [], isLoading: amendmentsLoading } = useQuery({
     queryKey: ['amendments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -56,23 +107,20 @@ export const AmendmentManager = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: isAdmin,
   });
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
   const handleConstitutionUpload = async () => {
-    if (!selectedFile || !uploadPassword) {
+    if (!selectedFile) {
       toast({
         title: "Error",
-        description: "Please select a file and enter the committee password",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (uploadPassword !== "MUSG2025") {
-      toast({
-        title: "Access Denied",
-        description: "Invalid committee chair password",
+        description: "Please select a file",
         variant: "destructive",
       });
       return;
@@ -88,7 +136,6 @@ export const AmendmentManager = () => {
       });
       
       setSelectedFile(null);
-      setUploadPassword("");
     } catch (error) {
       toast({
         title: "Error",
@@ -101,21 +148,7 @@ export const AmendmentManager = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteDialog.id || !deleteDialog.password) {
-      toast({
-        title: "Error",
-        description: "Please enter the committee password",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (deleteDialog.password !== "MUSG2025") {
-      toast({
-        title: "Access Denied",
-        description: "Invalid committee chair password",
-        variant: "destructive",
-      });
+    if (!deleteDialog.id) {
       return;
     }
 
@@ -139,23 +172,33 @@ export const AmendmentManager = () => {
     });
 
     queryClient.invalidateQueries({ queryKey: ['amendments'] });
-    setDeleteDialog({ open: false, id: null, password: "" });
+    setDeleteDialog({ open: false, id: null });
   };
 
   const handleEdit = async () => {
-    if (!editDialog.id || !editDialog.title || !editDialog.text || !editDialog.password) {
+    if (!editDialog.id || !editDialog.title || !editDialog.text) {
       toast({
         title: "Error",
-        description: "Please fill in all fields including the password",
+        description: "Please fill in all fields",
         variant: "destructive",
       });
       return;
     }
 
-    if (editDialog.password !== "MUSG2025") {
+    // Validate input
+    const validation = amendmentSchema.safeParse({
+      title: editDialog.title,
+      amendmentText: editDialog.text,
+      voteFor: 0,
+      voteAgainst: 0,
+      voteAbstention: 0,
+      voteAbsent: 0,
+    });
+
+    if (!validation.success) {
       toast({
-        title: "Access Denied",
-        description: "Invalid committee chair password",
+        title: "Validation Error",
+        description: validation.error.errors[0].message,
         variant: "destructive",
       });
       return;
@@ -184,20 +227,36 @@ export const AmendmentManager = () => {
     });
 
     queryClient.invalidateQueries({ queryKey: ['amendments'] });
-    setEditDialog({ open: false, id: null, title: "", text: "", password: "" });
+    setEditDialog({ open: false, id: null, title: "", text: "" });
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card className="p-8">
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <p className="text-center text-muted-foreground">Checking permissions...</p>
       </Card>
     );
+  }
+
+  if (!isAdmin) {
+    return null;
   }
 
   return (
     <>
       <Card className="p-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Logged in as: {user?.email}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+
         <div className="flex flex-col space-y-8">
           {/* Upload Constitution Section */}
           <div>
@@ -229,17 +288,6 @@ export const AmendmentManager = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="upload-password">Committee Chair Password</Label>
-                <Input
-                  id="upload-password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={uploadPassword}
-                  onChange={(e) => setUploadPassword(e.target.value)}
-                />
-              </div>
-
               <Button 
                 onClick={handleConstitutionUpload}
                 disabled={isUploading || !selectedFile}
@@ -260,7 +308,9 @@ export const AmendmentManager = () => {
               Edit or delete approved amendments
             </p>
 
-            {amendments.length > 0 ? (
+            {amendmentsLoading ? (
+              <p className="text-center text-muted-foreground">Loading amendments...</p>
+            ) : amendments.length > 0 ? (
               <div className="space-y-4">
                 {amendments.map((amendment, index) => (
                   <div key={amendment.id} className="p-6 border rounded-lg bg-card">
@@ -283,7 +333,6 @@ export const AmendmentManager = () => {
                               id: amendment.id,
                               title: amendment.title,
                               text: amendment.amendment_text,
-                              password: "",
                             })
                           }
                         >
@@ -296,7 +345,6 @@ export const AmendmentManager = () => {
                             setDeleteDialog({
                               open: true,
                               id: amendment.id,
-                              password: "",
                             })
                           }
                         >
@@ -328,23 +376,11 @@ export const AmendmentManager = () => {
           <DialogHeader>
             <DialogTitle>Delete Amendment</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. Enter the committee password to confirm deletion.
+              This action cannot be undone. Are you sure you want to delete this amendment?
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="delete-password">Committee Chair Password</Label>
-              <Input
-                id="delete-password"
-                type="password"
-                value={deleteDialog.password}
-                onChange={(e) => setDeleteDialog({ ...deleteDialog, password: e.target.value })}
-                placeholder="Enter password"
-              />
-            </div>
-          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, id: null, password: "" })}>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, id: null })}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
@@ -360,7 +396,7 @@ export const AmendmentManager = () => {
           <DialogHeader>
             <DialogTitle>Edit Amendment</DialogTitle>
             <DialogDescription>
-              Update the amendment details. Enter the committee password to save changes.
+              Update the amendment details.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -371,6 +407,7 @@ export const AmendmentManager = () => {
                 value={editDialog.title}
                 onChange={(e) => setEditDialog({ ...editDialog, title: e.target.value })}
                 placeholder="Amendment title"
+                maxLength={200}
               />
             </div>
             <div className="space-y-2">
@@ -381,16 +418,7 @@ export const AmendmentManager = () => {
                 onChange={(e) => setEditDialog({ ...editDialog, text: e.target.value })}
                 placeholder="Amendment text"
                 className="min-h-[200px] font-mono text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-password">Committee Chair Password</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={editDialog.password}
-                onChange={(e) => setEditDialog({ ...editDialog, password: e.target.value })}
-                placeholder="Enter password to confirm"
+                maxLength={10000}
               />
             </div>
           </div>
@@ -398,7 +426,7 @@ export const AmendmentManager = () => {
             <Button
               variant="outline"
               onClick={() =>
-                setEditDialog({ open: false, id: null, title: "", text: "", password: "" })
+                setEditDialog({ open: false, id: null, title: "", text: "" })
               }
             >
               Cancel
