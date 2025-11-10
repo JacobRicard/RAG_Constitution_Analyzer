@@ -88,18 +88,12 @@ export const AmendmentValidator = () => {
     try {
       const { data, error } = await supabase.functions.invoke('analyze-constitution', {
         body: { 
-          question: `Evaluate this proposed amendment for compliance. Check for:
-- Definition clarity
-- Authority chain
-- Thresholds
-- Due process
-- Contradictions with existing constitution
-- Loopholes
+          type: 'validate',
+          question: `Validate this proposed amendment:
 
-Proposed Amendment:
 ${amendmentText}
 
-Provide a detailed analysis with specific issues found.`
+Check all citations, verify placement correctness, ensure constitutional compliance, validate formatting, and check all cross-references.`
         }
       });
 
@@ -131,7 +125,7 @@ Provide a detailed analysis with specific issues found.`
             <CardTitle>Amendment Compliance Validator</CardTitle>
           </div>
           <CardDescription>
-            Evaluate submitted amendment text for definition clarity, authority chain, thresholds, due process, contradictions, and loopholes
+            Verify citations, check proper placement, validate constitutional compliance, and ensure correct formatting
           </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

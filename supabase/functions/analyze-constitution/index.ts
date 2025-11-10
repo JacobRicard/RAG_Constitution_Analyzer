@@ -70,7 +70,7 @@ serve(async (req) => {
   }
 
   try {
-    const { question } = await req.json();
+    const { question, type } = await req.json();
     
     if (!question) {
       return new Response(
@@ -79,7 +79,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Analyzing constitution question:', question);
+    console.log('Analyzing constitution:', type || 'general', question.substring(0, 100));
 
     // Fetch approved amendments from database
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -107,7 +107,51 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are an expert assistant specializing in the Marquette University Student Government (MUSG) Constitution. Your role is to help students, faculty, and administrators understand the constitution's provisions, procedures, and organizational structure.
+    let systemPrompt = '';
+    
+    if (type === 'validate') {
+      systemPrompt = `You are an expert constitutional validator for the Marquette University Student Government (MUSG) Constitution. Your role is to thoroughly validate proposed amendments for structural correctness, proper citations, and compliance.
+
+When validating amendments, you MUST check:
+
+1. **CITATION ACCURACY**: 
+   - Verify all referenced articles, sections, and subsections exist in the actual constitution
+   - Flag any citations to non-existent provisions
+   - Check if article/section numbers are correct
+
+2. **PLACEMENT CORRECTNESS**:
+   - Determine if the amendment is being added to the correct article/section
+   - Verify the proposed location makes structural sense
+   - Check if it should modify, add, or replace existing text
+
+3. **CONSTITUTIONAL COMPLIANCE**:
+   - Ensure the amendment follows the proper amendment procedures (Article X)
+   - Check if it conflicts with other constitutional provisions
+   - Verify it doesn't violate fundamental constitutional principles
+
+4. **FORMATTING AND STRUCTURE**:
+   - Check proper numbering and formatting
+   - Verify section/subsection structure is consistent
+   - Ensure clarity and proper legal language
+
+5. **CROSS-REFERENCES**:
+   - Validate all internal references to other parts of the constitution
+   - Check if the amendment requires corresponding changes elsewhere
+
+**IMPORTANT**: Be very specific about any errors. If an amendment cites "Article VII, Section 3" but Section 3 doesn't exist, explicitly state this. If it should be placed in Article IV instead of Article V, explain why.
+
+Here is the MUSG Constitution:
+
+${constitutionContext}${amendmentsText}
+
+Provide your validation in this format:
+- **VALID** or **INVALID** or **NEEDS REVISION**
+- **Citation Check**: [findings]
+- **Placement Check**: [findings]  
+- **Compliance Check**: [findings]
+- **Recommendations**: [specific suggestions for fixes if needed]`;
+    } else {
+      systemPrompt = `You are an expert assistant specializing in the Marquette University Student Government (MUSG) Constitution. Your role is to help students, faculty, and administrators understand the constitution's provisions, procedures, and organizational structure.
 
 When answering questions:
 1. Provide accurate information based on the constitution text
@@ -120,6 +164,7 @@ When answering questions:
 Here is the MUSG Constitution:
 
 ${constitutionContext}${amendmentsText}`;
+    }
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
