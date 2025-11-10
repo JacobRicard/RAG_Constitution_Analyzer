@@ -2,3 +2,6 @@ project_id = "wnoghpdhszsthawvarvk"
 
 [functions.parse-amendment]
 verify_jwt = false
+
+[functions.generate-constitution-pdf]
+verify_jwt = false

@@ -4,11 +4,12 @@ import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentSubmission } from "@/components/AmendmentSubmission";
+import { AmendmentManager } from "@/components/AmendmentManager";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, FilePlus } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle, FilePlus, Settings } from "lucide-react";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "submission">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "submission" | "manager">("chat");
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,6 +73,14 @@ const Index = () => {
               <FilePlus className="h-4 w-4" />
               Add Amendment
             </Button>
+            <Button
+              variant={activeTab === "manager" ? "default" : "ghost"}
+              onClick={() => setActiveTab("manager")}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Manage Amendments
+            </Button>
           </div>
         </div>
       </nav>
@@ -83,6 +92,7 @@ const Index = () => {
         {activeTab === "analyzer" && <WeaknessAnalyzer />}
         {activeTab === "viewer" && <ConstitutionViewer />}
         {activeTab === "submission" && <AmendmentSubmission />}
+        {activeTab === "manager" && <AmendmentManager />}
       </main>
 
       {/* Footer */}

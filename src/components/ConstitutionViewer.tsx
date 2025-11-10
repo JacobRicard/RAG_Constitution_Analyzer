@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,10 @@ export const ConstitutionViewer = () => {
     }
   });
 
+  const handleDownloadWithAmendments = () => {
+    window.open(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-constitution-pdf`, '_blank');
+  };
+
   return (
     <Card className="p-8">
       <div className="flex flex-col space-y-6">
@@ -31,12 +35,25 @@ export const ConstitutionViewer = () => {
               Full 50-page document with all articles, sections, and governing documents
             </p>
           </div>
-          <Button asChild size="lg" className="gap-2">
-            <a href="/musg-constitution.pdf" download="MUSG-Constitution-2025-2026.pdf">
-              <Download className="h-5 w-5" />
-              Download PDF
-            </a>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="lg" className="gap-2">
+              <a href="/musg-constitution.pdf" download="MUSG-Constitution-2025-2026.pdf">
+                <Download className="h-5 w-5" />
+                Original PDF
+              </a>
+            </Button>
+            {amendments.length > 0 && (
+              <Button
+                variant="default"
+                size="lg"
+                className="gap-2"
+                onClick={handleDownloadWithAmendments}
+              >
+                <FileDown className="h-5 w-5" />
+                With Amendments
+              </Button>
+            )}
+          </div>
         </div>
 
         {amendments.length > 0 && (
