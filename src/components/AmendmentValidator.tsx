@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, FileCheck } from "lucide-react";
+import { Loader2, FileCheck, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,7 +13,64 @@ export const AmendmentValidator = () => {
   const [amendmentText, setAmendmentText] = useState("");
   const [analysis, setAnalysis] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PDF or DOCX file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    setIsProcessing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-amendment`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to parse document');
+      }
+
+      const data = await response.json();
+      setAmendmentText(data.fullText || '');
+
+      toast({
+        title: "Document Processed",
+        description: "Amendment text extracted. Click 'Validate Amendment' to analyze.",
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Processing Failed",
+        description: "Could not extract text from document. Please paste the text manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const validateAmendment = async () => {
     if (!amendmentText.trim()) {
@@ -74,28 +133,57 @@ Provide a detailed analysis with specific issues found.`
           <CardDescription>
             Evaluate submitted amendment text for definition clarity, authority chain, thresholds, due process, contradictions, and loopholes
           </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Alert>
+          <AlertDescription>
+            Upload a PDF or DOCX amendment document to automatically extract the text, or paste it manually below.
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-2">
+          <Label htmlFor="file-upload">Upload Amendment Document (Optional)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="file-upload"
+              type="file"
+              accept=".pdf,.docx,.doc"
+              onChange={handleFileUpload}
+              disabled={isProcessing || isLoading}
+              className="cursor-pointer"
+            />
+            {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
+          </div>
+          {selectedFile && (
+            <p className="text-sm text-muted-foreground">
+              Selected: {selectedFile.name}
+            </p>
+          )}
+        </div>
+
+        <Textarea
             placeholder="Paste your proposed amendment text here..."
             value={amendmentText}
             onChange={(e) => setAmendmentText(e.target.value)}
             className="min-h-[200px] font-mono text-sm"
           />
-          <Button 
-            onClick={validateAmendment} 
-            disabled={isLoading || !amendmentText.trim()}
-            className="w-full"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing Amendment...
-              </>
-            ) : (
-              "Validate Amendment"
-            )}
-          </Button>
+        <Button 
+          onClick={validateAmendment} 
+          disabled={isLoading || isProcessing || !amendmentText.trim()}
+          className="w-full"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing Amendment...
+            </>
+          ) : (
+            <>
+              <Upload className="mr-2 h-4 w-4" />
+              Validate Amendment
+            </>
+          )}
+        </Button>
         </CardContent>
       </Card>
 

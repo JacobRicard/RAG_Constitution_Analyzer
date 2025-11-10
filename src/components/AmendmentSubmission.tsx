@@ -6,17 +6,73 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const AmendmentSubmission = () => {
   const [title, setTitle] = useState("");
   const [amendmentText, setAmendmentText] = useState("");
-  const [voteFor, setVoteFor] = useState("");
-  const [voteAgainst, setVoteAgainst] = useState("");
-  const [voteAbstention, setVoteAbstention] = useState("");
-  const [voteAbsent, setVoteAbsent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PDF or DOCX file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    setIsProcessing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-amendment`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to parse document');
+      }
+
+      const data = await response.json();
+      setTitle(data.title || '');
+      setAmendmentText(data.amendmentText || data.fullText || '');
+
+      toast({
+        title: "Document Processed",
+        description: "Amendment text extracted. Please review and edit as needed.",
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Processing Failed",
+        description: "Could not extract text from document. Please paste the text manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || !amendmentText.trim()) {
@@ -33,12 +89,8 @@ export const AmendmentSubmission = () => {
       const { error } = await supabase.from("amendments").insert({
         title: title.trim(),
         amendment_text: amendmentText.trim(),
-        status: "approved", // Auto-approve for now
+        status: "approved",
         approved_at: new Date().toISOString(),
-        vote_for: parseInt(voteFor) || 0,
-        vote_against: parseInt(voteAgainst) || 0,
-        vote_abstention: parseInt(voteAbstention) || 0,
-        vote_absent: parseInt(voteAbsent) || 0,
       });
 
       if (error) throw error;
@@ -51,10 +103,7 @@ export const AmendmentSubmission = () => {
       // Reset form
       setTitle("");
       setAmendmentText("");
-      setVoteFor("");
-      setVoteAgainst("");
-      setVoteAbstention("");
-      setVoteAbsent("");
+      setSelectedFile(null);
     } catch (error) {
       console.error("Error submitting amendment:", error);
       toast({
@@ -76,6 +125,32 @@ export const AmendmentSubmission = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <Alert>
+          <AlertDescription>
+            Upload a PDF or DOCX file to automatically extract the amendment text, or enter it manually below.
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-2">
+          <Label htmlFor="file-upload">Upload Amendment Document (Optional)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="file-upload"
+              type="file"
+              accept=".pdf,.docx,.doc"
+              onChange={handleFileUpload}
+              disabled={isProcessing}
+              className="cursor-pointer"
+            />
+            {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
+          </div>
+          {selectedFile && (
+            <p className="text-sm text-muted-foreground">
+              Selected: {selectedFile.name}
+            </p>
+          )}
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="title">Amendment Title</Label>
           <Input
@@ -97,52 +172,9 @@ export const AmendmentSubmission = () => {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="voteFor">Votes For</Label>
-            <Input
-              id="voteFor"
-              type="number"
-              placeholder="0"
-              value={voteFor}
-              onChange={(e) => setVoteFor(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="voteAgainst">Votes Against</Label>
-            <Input
-              id="voteAgainst"
-              type="number"
-              placeholder="0"
-              value={voteAgainst}
-              onChange={(e) => setVoteAgainst(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="voteAbstention">Abstentions</Label>
-            <Input
-              id="voteAbstention"
-              type="number"
-              placeholder="0"
-              value={voteAbstention}
-              onChange={(e) => setVoteAbstention(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="voteAbsent">Absent</Label>
-            <Input
-              id="voteAbsent"
-              type="number"
-              placeholder="0"
-              value={voteAbsent}
-              onChange={(e) => setVoteAbsent(e.target.value)}
-            />
-          </div>
-        </div>
-
         <Button 
           onClick={handleSubmit} 
-          disabled={isSubmitting}
+          disabled={isSubmitting || isProcessing}
           className="w-full"
         >
           {isSubmitting ? (
@@ -151,7 +183,10 @@ export const AmendmentSubmission = () => {
               Submitting...
             </>
           ) : (
-            "Add Amendment to Constitution"
+            <>
+              <Upload className="mr-2 h-4 w-4" />
+              Add Amendment to Constitution
+            </>
           )}
         </Button>
       </CardContent>
