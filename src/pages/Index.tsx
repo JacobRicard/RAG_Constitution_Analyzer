@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { ConstitutionChat } from "@/components/ConstitutionChat";
 import { ConstitutionViewer } from "@/components/ConstitutionViewer";
+import { AmendmentValidator } from "@/components/AmendmentValidator";
+import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle } from "lucide-react";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer">("chat");
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,7 +30,7 @@ const Index = () => {
       {/* Navigation Tabs */}
       <nav className="border-b border-border bg-card">
         <div className="container mx-auto max-w-6xl px-6">
-          <div className="flex gap-2 py-4">
+          <div className="flex gap-2 py-4 flex-wrap">
             <Button
               variant={activeTab === "chat" ? "default" : "ghost"}
               onClick={() => setActiveTab("chat")}
@@ -36,6 +38,22 @@ const Index = () => {
             >
               <MessageSquare className="h-4 w-4" />
               AI Assistant
+            </Button>
+            <Button
+              variant={activeTab === "validator" ? "default" : "ghost"}
+              onClick={() => setActiveTab("validator")}
+              className="flex items-center gap-2"
+            >
+              <FileCheck className="h-4 w-4" />
+              Amendment Validator
+            </Button>
+            <Button
+              variant={activeTab === "analyzer" ? "default" : "ghost"}
+              onClick={() => setActiveTab("analyzer")}
+              className="flex items-center gap-2"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Weakness Analyzer
             </Button>
             <Button
               variant={activeTab === "viewer" ? "default" : "ghost"}
@@ -51,7 +69,10 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto max-w-6xl px-6 py-8">
-        {activeTab === "chat" ? <ConstitutionChat /> : <ConstitutionViewer />}
+        {activeTab === "chat" && <ConstitutionChat />}
+        {activeTab === "validator" && <AmendmentValidator />}
+        {activeTab === "analyzer" && <WeaknessAnalyzer />}
+        {activeTab === "viewer" && <ConstitutionViewer />}
       </main>
 
       {/* Footer */}
