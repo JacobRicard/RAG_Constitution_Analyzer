@@ -45,7 +45,9 @@ export const ConstitutionChat = () => {
       });
 
       if (error) {
-        console.error("Error calling function:", error);
+        if (import.meta.env.DEV) {
+          console.error("Error calling function:", error);
+        }
         throw error;
       }
 
@@ -58,7 +60,9 @@ export const ConstitutionChat = () => {
         { role: "assistant", content: data.answer || "I'm sorry, I couldn't generate a response." },
       ]);
     } catch (error) {
-      console.error("Error:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error:", error);
+      }
       toast({
         title: "Error",
         description: "Failed to get response. Please try again.",

@@ -23,12 +23,16 @@ serve(async (req) => {
       );
     }
 
-    console.log('Parsing amendment file:', file.name, 'Type:', file.type);
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Parsing amendment file:', file.name, 'Type:', file.type);
+    }
 
     const fileText = await extractTextFromDocument(file);
     
     if (!fileText || fileText.length < 10) {
-      console.error('Failed to extract meaningful text from document');
+      if (Deno.env.get('ENVIRONMENT') === 'development') {
+        console.error('Failed to extract meaningful text from document');
+      }
       return new Response(
         JSON.stringify({ 
           title: 'Untitled Amendment',
@@ -43,8 +47,10 @@ serve(async (req) => {
     const title = extractTitle(fileText);
     const amendmentText = extractAmendmentText(fileText);
 
-    console.log('Amendment parsed successfully. Title:', title);
-    console.log('Text length:', amendmentText.length);
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Amendment parsed successfully. Title:', title);
+      console.log('Text length:', amendmentText.length);
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -55,7 +61,9 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error parsing amendment:', error);
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.error('Error parsing amendment:', error);
+    }
     return new Response(
       JSON.stringify({ 
         title: 'Untitled Amendment',
@@ -73,13 +81,17 @@ async function extractTextFromDocument(file: File): Promise<string> {
   // Handle DOCX files
   if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
       file.name.endsWith('.docx')) {
-    console.log('Processing DOCX file');
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Processing DOCX file');
+    }
     return await extractTextFromDocx(arrayBuffer);
   }
   
   // Handle PDF files - for now, return empty string with message
   if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-    console.log('PDF parsing not fully implemented yet');
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('PDF parsing not fully implemented yet');
+    }
     return 'PDF text extraction not available. Please copy and paste the text manually.';
   }
   
@@ -90,7 +102,9 @@ async function extractTextFromDocument(file: File): Promise<string> {
 
 async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Loading DOCX as ZIP...');
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Loading DOCX as ZIP...');
+    }
     const zip = new JSZip();
     await zip.loadAsync(arrayBuffer);
     
@@ -98,13 +112,17 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
     const documentXmlFile = zip.file('word/document.xml');
     
     if (!documentXmlFile) {
-      console.error('Could not find document.xml in DOCX');
+      if (Deno.env.get('ENVIRONMENT') === 'development') {
+        console.error('Could not find document.xml in DOCX');
+      }
       return '';
     }
     
     const documentXml = await documentXmlFile.async('text');
     
-    console.log('Extracting text from XML...');
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Extracting text from XML...');
+    }
     // Extract text from <w:t> tags (text runs in Word XML)
     const textMatches = documentXml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g);
     const textArray: string[] = [];
@@ -124,10 +142,14 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
       extractedText = text;
     }
     
-    console.log('Extracted text length:', extractedText.length);
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Extracted text length:', extractedText.length);
+    }
     return extractedText.trim();
   } catch (error) {
-    console.error('Error extracting text from DOCX:', error);
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.error('Error extracting text from DOCX:', error);
+    }
     throw new Error('Failed to parse DOCX file');
   }
 }

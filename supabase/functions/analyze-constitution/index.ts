@@ -279,7 +279,9 @@ serve(async (req) => {
       );
     }
 
-    console.log('Analyzing constitution:', type || 'general', question.substring(0, 100));
+    if (Deno.env.get('ENVIRONMENT') === 'development') {
+      console.log('Analyzing constitution:', type || 'general', question.substring(0, 100));
+    }
 
     // Fetch approved amendments from database
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

@@ -41,7 +41,9 @@ Provide specific examples with article and section references, and explain why e
         throw new Error('No analysis received');
       }
     } catch (error: any) {
-      console.error('Analysis error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Analysis error:', error);
+      }
       toast({
         title: "Analysis failed",
         description: error.message || "Failed to analyze constitution. Please try again.",
