@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import JSZip from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,27 +23,28 @@ serve(async (req) => {
       );
     }
 
-    console.log('Parsing amendment file:', file.name);
+    console.log('Parsing amendment file:', file.name, 'Type:', file.type);
 
-    // Convert file to base64
-    const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    const base64 = btoa(String.fromCharCode(...bytes));
-
-    // Use a document parsing service or simple text extraction
-    // For now, we'll use a simple approach with PDFium or similar
-    // This is a placeholder - in production, you'd use a proper PDF parsing library
-    
-    // For demonstration, we'll extract text using a hypothetical parsing approach
-    // In reality, you'd need to integrate with a PDF parsing service
-    
     const fileText = await extractTextFromDocument(file);
     
+    if (!fileText || fileText.length < 10) {
+      console.error('Failed to extract meaningful text from document');
+      return new Response(
+        JSON.stringify({ 
+          title: 'Untitled Amendment',
+          amendmentText: '',
+          error: 'Could not extract text from document. Please try copying and pasting the text manually.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Extract key components
     const title = extractTitle(fileText);
     const amendmentText = extractAmendmentText(fileText);
 
-    console.log('Amendment parsed successfully');
+    console.log('Amendment parsed successfully. Title:', title);
+    console.log('Text length:', amendmentText.length);
 
     return new Response(
       JSON.stringify({ 
@@ -55,17 +57,79 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error parsing amendment:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to parse document' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        title: 'Untitled Amendment',
+        amendmentText: '',
+        error: error instanceof Error ? error.message : 'Failed to parse document'
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
 async function extractTextFromDocument(file: File): Promise<string> {
-  // This is a simplified implementation
-  // In production, you'd use proper PDF/DOCX parsing libraries
+  const arrayBuffer = await file.arrayBuffer();
+  
+  // Handle DOCX files
+  if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+      file.name.endsWith('.docx')) {
+    console.log('Processing DOCX file');
+    return await extractTextFromDocx(arrayBuffer);
+  }
+  
+  // Handle PDF files - for now, return empty string with message
+  if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+    console.log('PDF parsing not fully implemented yet');
+    return 'PDF text extraction not available. Please copy and paste the text manually.';
+  }
+  
+  // Handle plain text files
   const text = await file.text();
   return text;
+}
+
+async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
+  try {
+    console.log('Loading DOCX as ZIP...');
+    const zip = new JSZip();
+    await zip.loadAsync(arrayBuffer);
+    
+    // DOCX files contain the main document in word/document.xml
+    const documentXmlFile = zip.file('word/document.xml');
+    
+    if (!documentXmlFile) {
+      console.error('Could not find document.xml in DOCX');
+      return '';
+    }
+    
+    const documentXml = await documentXmlFile.async('text');
+    
+    console.log('Extracting text from XML...');
+    // Extract text from <w:t> tags (text runs in Word XML)
+    const textMatches = documentXml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+    const textArray: string[] = [];
+    
+    for (const match of textMatches) {
+      if (match[1]) {
+        textArray.push(match[1]);
+      }
+    }
+    
+    let extractedText = textArray.join(' ');
+    
+    // Also try to get text from any remaining content by stripping all XML tags if we got too little
+    if (extractedText.length < 50) {
+      let text = documentXml.replace(/<[^>]+>/g, ' ');
+      text = text.replace(/\s+/g, ' ').trim();
+      extractedText = text;
+    }
+    
+    console.log('Extracted text length:', extractedText.length);
+    return extractedText.trim();
+  } catch (error) {
+    console.error('Error extracting text from DOCX:', error);
+    throw new Error('Failed to parse DOCX file');
+  }
 }
 
 function extractTitle(text: string): string {
