@@ -60,7 +60,6 @@ export const AmendmentManager = () => {
       setUser(session.user);
 
       // Check if user has admin role
-      console.log('Checking admin role for user:', session.user.id);
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -68,10 +67,18 @@ export const AmendmentManager = () => {
         .eq('role', 'admin')
         .maybeSingle();
 
-      console.log('Role query result:', { roleData, roleError });
+      if (roleError) {
+        console.error('Role check error:', roleError);
+        toast({
+          title: "Error",
+          description: "Failed to verify admin privileges. Please try again.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
 
       if (!roleData) {
-        console.log('No admin role found, denying access');
         toast({
           title: "Access Denied",
           description: "You do not have admin privileges. Please contact a committee chair.",
@@ -81,7 +88,6 @@ export const AmendmentManager = () => {
         return;
       }
 
-      console.log('Admin access granted');
       setIsAdmin(true);
       setLoading(false);
     };
