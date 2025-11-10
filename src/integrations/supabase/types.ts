@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      amendments: {
+        Row: {
+          amendment_text: string
+          approved_at: string | null
+          created_at: string
+          id: string
+          status: string
+          submitted_at: string
+          title: string
+          vote_absent: number | null
+          vote_abstention: number | null
+          vote_against: number | null
+          vote_for: number | null
+        }
+        Insert: {
+          amendment_text: string
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          submitted_at?: string
+          title: string
+          vote_absent?: number | null
+          vote_abstention?: number | null
+          vote_against?: number | null
+          vote_for?: number | null
+        }
+        Update: {
+          amendment_text?: string
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          submitted_at?: string
+          title?: string
+          vote_absent?: number | null
+          vote_abstention?: number | null
+          vote_against?: number | null
+          vote_for?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

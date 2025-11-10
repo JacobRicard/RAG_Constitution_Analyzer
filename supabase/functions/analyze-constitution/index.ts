@@ -79,6 +79,32 @@ serve(async (req) => {
 
     console.log('Analyzing constitution question:', question);
 
+    // Fetch approved amendments from database
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const amendmentsResponse = await fetch(
+      `${supabaseUrl}/rest/v1/amendments?status=eq.approved&order=approved_at.asc`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        }
+      }
+    );
+
+    const amendments = await amendmentsResponse.json();
+    
+    let amendmentsText = '';
+    if (amendments && amendments.length > 0) {
+      amendmentsText = '\n\nAMENDMENTS:\n\n';
+      amendments.forEach((amendment: any, index: number) => {
+        amendmentsText += `AMENDMENT ${index + 1} (Approved: ${new Date(amendment.approved_at).toLocaleDateString()})\n`;
+        amendmentsText += `Title: ${amendment.title}\n\n`;
+        amendmentsText += amendment.amendment_text + '\n\n';
+      });
+    }
+
     const systemPrompt = `You are an expert assistant specializing in the Marquette University Student Government (MUSG) Constitution. Your role is to help students, faculty, and administrators understand the constitution's provisions, procedures, and organizational structure.
 
 When answering questions:
@@ -91,7 +117,7 @@ When answering questions:
 
 Here is the MUSG Constitution:
 
-${constitutionContext}`;
+${constitutionContext}${amendmentsText}`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
