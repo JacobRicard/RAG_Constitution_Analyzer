@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,26 +41,187 @@ Section 8: There shall be an Elections Committee, chaired by the Elections Coord
 Section 9: There shall be a Judicial Administrator.
 
 ARTICLE V – ELECTIONS
-Section 1: The procedure for MUSG elections is stated in the MUSG Election Rules. Any changes in the Election Rules are subject to a two-thirds affirmative vote of the seated Senate.
+Section 1: The procedure for MUSG elections is stated in the MUSG Election Rules.
 Section 2: The President, Executive Vice President, and Academic Senators shall be elected annually in the spring election. Officials elected in the spring elections shall take office on April 1st.
-Section 3: Residential Senators shall be elected annually in the fall elections. The fall elections shall be held the fourth week of the fall semester.
+Section 3: Residential Senators shall be elected annually in the fall elections.
 
 ARTICLE VI – APPOINTMENT OF MUSG OFFICERS AND ASSISTANTS
-Various selection committees exist for different positions, including Financial Vice President, Communications Vice President, and Outreach Vice President. The Legislative Vice President is elected by the Senate. All appointments follow specific procedures outlined in the constitution.
+Section 1: The Executive Vice President, in consultation with the President, shall appoint the Chief of Staff and the Campus Activities Board Liaison.
+Section 2: The Outreach Vice President shall be recommended by the Outreach Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
+Section 3: The Financial Vice President shall be recommended by the Financial Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
+Section 4: The Communications Vice President shall be recommended by the Communications Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
+Section 5: The Legislative Vice President shall be elected from the membership of MUSG by a majority vote of the seated Senate.
 
 ARTICLE VII – MEETINGS
-Regular meetings are required for all departments at least once per month during fall and spring semesters. Quorum is defined as greater than 50% of current membership.
+Section 1-7: Various departments must meet at least once per month during fall and spring semesters. Quorum is defined as greater than 50% of current membership.
 
 ARTICLE VIII – FINANCES
-The Financial Vice President manages MUSG finances under Senate oversight. All expenditures must follow proper approval procedures.
+The Financial Vice President shall manage MUSG finances under Senate oversight. All expenditures must follow proper approval procedures as outlined in the Financial Policies.
 
 ARTICLE IX – IMPEACHMENT AND REMOVAL
-Officers can be removed for cause through specific procedures involving the Senate and appropriate committees.
+Officers can be removed for cause through specific procedures involving the Senate. A two-thirds vote of the seated Senate shall be necessary to facilitate the removal of any person holding an elected position in MUSG.
 
 ARTICLE X – CONSTITUTIONAL AMENDMENTS
 Amendments require a two-thirds vote of the Senate and approval from the Vice President for Belonging and Student Affairs.
 
-The complete MUSG Governing Documents also include By-Laws (detailed organizational rules, officer descriptions, eligibility requirements, attendance policies, removal procedures), Budget Approval Procedures, Election Rules (registration, campaigning, voting procedures), Financial Policies (student organization funding, reserve fund, budget processes), Senate Standing Rules, and various selection procedures for speakers and student representation.
+===== BY-LAWS =====
+
+ARTICLE I – EXECUTIVE BOARD
+The Executive Board, chaired by the President, is comprised of the President, Executive Vice President, Financial Vice President, Communications Vice President, Legislative Vice President, and Outreach Vice President. The Executive Board meets at least once per month during the fall and spring semesters and is responsible for overseeing MUSG operations and strategic direction.
+
+ARTICLE II – EXECUTIVE DEPARTMENT
+The Executive Department, chaired by the Executive Vice President, consists of the Chief of Staff and Campus Activities Board Liaison. The Executive Vice President oversees day-to-day operations, chairs the Student Organization Funding Committee, and manages the coordination between MUSG departments.
+
+ARTICLE III – PRESIDENT
+Responsibilities include:
+- Serving as chief executive and spokesperson for MUSG
+- Chairing the Executive Board
+- Signing or vetoing legislation passed by the Senate
+- Appointing members to various committees
+- Managing overall MUSG operations
+
+ARTICLE IV – FINANCIAL DEPARTMENT  
+The Financial Department, chaired by the Financial Vice President, consists of Three (3) Financial Office Assistants. The Financial Vice President is responsible for:
+- Managing the MUSG Annual Operating Budget
+- Chairing the Budget Committee
+- Serving as a voting member of the Student Organization Funding Committee
+- Overseeing all financial transactions and maintaining financial records
+- Preparing financial reports for the Senate
+
+ARTICLE V – COMMUNICATIONS DEPARTMENT
+The Communications Department, chaired by the Communications Vice President, consists of Three (3) Directors, Graphic Design Assistants, Multimedia Assistants, and Public Relations Assistants. Responsibilities include managing MUSG's public relations, social media, website, marketing materials, and communications strategy.
+
+ARTICLE VI – SENATE
+The Senate, chaired by the Legislative Vice President, consists of the Legislative Clerk and Academic and Residential Senators. The Senate is the legislative body of MUSG responsible for:
+- Passing legislation and resolutions
+- Approving the annual budget
+- Confirming appointments of Vice Presidents
+- Representing student concerns
+
+Senate Standing Committees include:
+1. Business and Administration Committee – Reviews MUSG appointments and internal operations
+2. External Relations Committee – Handles relationships with university administration and external organizations  
+3. Student Organization Funding Committee (SOF) – Allocates Student Activity Fee funds to student organizations. The Executive Vice President serves as Chair of this committee.
+
+ARTICLE VII – OUTREACH DEPARTMENT
+The Outreach Department, chaired by the Outreach Vice President, consists of the Senior Speaker Coordinator, Administrative Assistant, Coordinator for Diversity, Equity, and Social Justice, Coordinator for Community Engagement, Coordinator for Sustainability, and Office Receptionists.
+
+ARTICLE VIII – OFFICER DESCRIPTIONS
+
+President:
+- Chief executive officer of MUSG
+- Chairs Executive Board meetings
+- Signs or vetoes legislation
+- Serves as primary spokesperson
+
+Executive Vice President:  
+- Chairs the Executive Department
+- CHAIRS THE STUDENT ORGANIZATION FUNDING COMMITTEE (SOF)
+- Oversees day-to-day MUSG operations
+- Becomes President if that office is vacated
+
+Financial Vice President:
+- Manages MUSG finances and budget
+- Chairs the Budget Committee  
+- Voting member of SOF Committee
+- Prepares financial reports
+
+Communications Vice President:
+- Manages all MUSG communications
+- Oversees marketing and public relations
+- Maintains MUSG website and social media
+
+Legislative Vice President:
+- Chairs the Senate
+- Manages Senate legislative process
+- Coordinates Senate committees
+
+Outreach Vice President:
+- Manages community engagement initiatives
+- Coordinates diversity and social justice programs
+- Oversees sustainability efforts
+
+===== FINANCIAL POLICIES =====
+
+SECTION I – AUTHORITY
+The Marquette University Student Government (MUSG) Financial Policies define the policies and procedures which pertain to the collection and distribution of MUSG funds, as mandated by Article VIII of the MUSG Constitution.
+
+SECTION II – DEFINITIONS
+
+1. MUSG Annual Operating Budget – Comprised of revenues from the MUSG portion of the Student Activity Fee (SAF) and derived funds and their disbursement for the fiscal year of July 1 to June 30.
+
+2. MUSG Budget Committee – Standing committee of MUSG responsible for compiling and submitting annual budget recommendations. Voting members shall be the Financial Vice President as Chair, President, one Academic Senator, one Residential Senator and the Vice President for Belonging and Student Affairs or designee.
+
+3. Student Organization Funding Committee (SOF) – Standing committee of MUSG responsible for compiling and overseeing the periodic allocations of the Student Activity Fee as it pertains to club sports teams and registered student organizations. 
+
+**VOTING MEMBERS OF SOF COMMITTEE:**
+- Executive Vice President (CHAIR)
+- Financial Vice President  
+- Coordinator for Diversity, Equity, and Social Justice
+- Two Academic Senators
+- Two Residential Senators
+- Vice President for Belonging and Student Affairs or Designee (advisor, must be present)
+
+The Executive Vice President chairs the SOF Committee and is responsible for overseeing the Student Organization Funding process, including organizing meetings, coordinating deliberations, and ensuring proper allocation procedures are followed.
+
+4. Student Activity Fee (SAF) – Assessed by the University against the membership of MUSG. The MUSG portion of the SAF shall be collected by the University for MUSG.
+
+5. Derived Funds – Funds derived from MUSG-sponsored qualifying student services, or any interest earned on the investment of MUSG funds in the Reserve Fund.
+
+SECTION III – STUDENT ORGANIZATION FUNDING POLICIES
+
+The Student Organization Funding Committee (chaired by the Executive Vice President) oversees allocation of Student Activity Fee funds to registered student organizations and club sports teams. Organizations may submit funding requests for:
+- Programming and events
+- Equipment and supplies
+- Travel for competitions or conferences
+- Operating expenses
+
+RESTRICTIONS:
+- No funding for charitable donations or gifts
+- No funding for food except as part of approved programming
+- No funding for alcohol or controlled substances
+- Capital goods require special justification
+
+The SOF Committee meets regularly throughout the academic year to review funding requests. The Executive Vice President, as Chair, is responsible for scheduling meetings, managing the review process, and ensuring all decisions comply with Financial Policies.
+
+SECTION IV – BUDGET PROCESS
+The Financial Vice President prepares the annual MUSG budget in consultation with the Budget Committee. The budget must be approved by a two-thirds vote of the seated Senate.
+
+SECTION V – FINANCIAL OVERSIGHT
+The Financial Vice President maintains all financial records and prepares monthly reports for the Senate. The Executive Vice President, through oversight of the SOF Committee, ensures proper allocation of student organization funds.
+
+===== SENATE STANDING RULES =====
+
+Senate Standing Rules govern the conduct of Senate meetings, including:
+- Meeting procedures and parliamentary rules
+- Voting procedures (simple majority vs. two-thirds majority)
+- Debate rules and time limits
+- Committee structures and responsibilities
+- Legislative processes for bills and resolutions
+
+===== ELECTION RULES =====
+
+MUSG Election Rules govern all student government elections, including:
+- Candidate eligibility and registration procedures
+- Campaign rules and spending limits
+- Voting procedures and ballot format
+- Vote counting and certification
+- Violation procedures and appeals
+
+===== ADDITIONAL GOVERNING DOCUMENTS =====
+
+- Budget Approval Procedures
+- Senior Speaker Selection Procedures  
+- Student Organization Recognition Procedures
+- University Committee Student Representation Procedures
+
+For complete details, refer to the full 50-page MUSG Governing Documents.
+
+Contact: Marquette University Student Government
+Alumni Memorial Union, Room 133
+PO Box 1881, Milwaukee, WI 53201-1881
+414-288-7416
+musg.mu.edu
 `;
 
 serve(async (req) => {
@@ -166,24 +327,29 @@ Here is the MUSG Constitution:
 ${constitutionContext}${amendmentsText}`;
     }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'user',
-            content: `${systemPrompt}\n\nQuestion: ${question}`
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\nQuestion: ${question}` }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 4096,
           }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
-    });
+        }),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -205,7 +371,7 @@ ${constitutionContext}${amendmentsText}`;
     }
 
     const data = await response.json();
-    const answer = data.choices?.[0]?.message?.content || 'Unable to generate response';
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate response';
 
     console.log('Constitution analysis complete');
 
