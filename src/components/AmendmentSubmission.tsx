@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 export const AmendmentSubmission = () => {
   const [title, setTitle] = useState("");
   const [amendmentText, setAmendmentText] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -75,10 +76,20 @@ export const AmendmentSubmission = () => {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !amendmentText.trim()) {
+    if (!title.trim() || !amendmentText.trim() || !password.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please provide both a title and amendment text.",
+        description: "Please provide title, amendment text, and committee password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password (default: "MUSG2025")
+    if (password !== "MUSG2025") {
+      toast({
+        title: "Access Denied",
+        description: "Invalid BNA Committee Chair password.",
         variant: "destructive",
       });
       return;
@@ -103,6 +114,7 @@ export const AmendmentSubmission = () => {
       // Reset form
       setTitle("");
       setAmendmentText("");
+      setPassword("");
       setSelectedFile(null);
     } catch (error) {
       console.error("Error submitting amendment:", error);
@@ -170,6 +182,20 @@ export const AmendmentSubmission = () => {
             onChange={(e) => setAmendmentText(e.target.value)}
             className="min-h-[200px] font-mono text-sm"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">BNA Committee Chair Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter committee chair password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Only the BNA Committee Chair can add amendments
+          </p>
         </div>
 
         <Button 
