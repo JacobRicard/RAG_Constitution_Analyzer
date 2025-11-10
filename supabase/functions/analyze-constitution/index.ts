@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -166,24 +166,22 @@ Here is the MUSG Constitution:
 ${constitutionContext}${amendmentsText}`;
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_API_KEY}`, {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [
+        model: 'google/gemini-2.5-flash',
+        messages: [
           {
             role: 'user',
-            parts: [{ text: `${systemPrompt}\n\nQuestion: ${question}` }]
+            content: `${systemPrompt}\n\nQuestion: ${question}`
           }
         ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        }
+        temperature: 0.7,
+        max_tokens: 2048,
       }),
     });
 
@@ -207,7 +205,7 @@ ${constitutionContext}${amendmentsText}`;
     }
 
     const data = await response.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate response';
+    const answer = data.choices?.[0]?.message?.content || 'Unable to generate response';
 
     console.log('Constitution analysis complete');
 
