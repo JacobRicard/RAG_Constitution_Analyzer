@@ -3,13 +3,12 @@ import { ConstitutionChat } from "@/components/ConstitutionChat";
 import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
-import { AmendmentSubmission } from "@/components/AmendmentSubmission";
 import { AmendmentManager } from "@/components/AmendmentManager";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, FilePlus, Settings } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings } from "lucide-react";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "submission" | "manager">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager">("chat");
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,20 +65,12 @@ const Index = () => {
               Read Constitution
             </Button>
             <Button
-              variant={activeTab === "submission" ? "default" : "ghost"}
-              onClick={() => setActiveTab("submission")}
-              className="flex items-center gap-2"
-            >
-              <FilePlus className="h-4 w-4" />
-              Add Amendment
-            </Button>
-            <Button
               variant={activeTab === "manager" ? "default" : "ghost"}
               onClick={() => setActiveTab("manager")}
               className="flex items-center gap-2"
             >
               <Settings className="h-4 w-4" />
-              Manage Amendments
+              Manage
             </Button>
           </div>
         </div>
@@ -91,7 +82,6 @@ const Index = () => {
         {activeTab === "validator" && <AmendmentValidator />}
         {activeTab === "analyzer" && <WeaknessAnalyzer />}
         {activeTab === "viewer" && <ConstitutionViewer />}
-        {activeTab === "submission" && <AmendmentSubmission />}
         {activeTab === "manager" && <AmendmentManager />}
       </main>
 

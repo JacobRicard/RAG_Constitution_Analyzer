@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,10 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const AmendmentManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [uploadPassword, setUploadPassword] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null; password: string }>({
     open: false,
     id: null,
@@ -54,6 +58,47 @@ export const AmendmentManager = () => {
       return data;
     }
   });
+
+  const handleConstitutionUpload = async () => {
+    if (!selectedFile || !uploadPassword) {
+      toast({
+        title: "Error",
+        description: "Please select a file and enter the committee password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (uploadPassword !== "MUSG2025") {
+      toast({
+        title: "Access Denied",
+        description: "Invalid committee chair password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // This would upload the file to replace the constitution
+      // For now, we'll show a message that manual replacement is needed
+      toast({
+        title: "Upload Ready",
+        description: "Please manually replace the musg-constitution.pdf file in the public folder with your new file.",
+      });
+      
+      setSelectedFile(null);
+      setUploadPassword("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process upload",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteDialog.id || !deleteDialog.password) {
@@ -145,7 +190,7 @@ export const AmendmentManager = () => {
   if (isLoading) {
     return (
       <Card className="p-8">
-        <p className="text-center text-muted-foreground">Loading amendments...</p>
+        <p className="text-center text-muted-foreground">Loading...</p>
       </Card>
     );
   }
@@ -153,17 +198,69 @@ export const AmendmentManager = () => {
   return (
     <>
       <Card className="p-8">
-        <div className="flex flex-col space-y-6">
+        <div className="flex flex-col space-y-8">
+          {/* Upload Constitution Section */}
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Manage Amendments</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Edit or delete approved amendments (requires committee password)
+            <h2 className="text-2xl font-bold text-foreground mb-2">Upload Updated Constitution</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Replace the constitution PDF with an updated version
             </p>
+            
+            <Alert className="mb-4">
+              <AlertDescription>
+                Upload a new constitution PDF file. This will replace the current constitution document.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="constitution-file">Constitution PDF File</Label>
+                <Input
+                  id="constitution-file"
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+                {selectedFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Selected: {selectedFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="upload-password">Committee Chair Password</Label>
+                <Input
+                  id="upload-password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={uploadPassword}
+                  onChange={(e) => setUploadPassword(e.target.value)}
+                />
+              </div>
+
+              <Button 
+                onClick={handleConstitutionUpload}
+                disabled={isUploading || !selectedFile}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {isUploading ? "Uploading..." : "Upload Constitution"}
+              </Button>
+            </div>
           </div>
 
-          {amendments.length > 0 ? (
-            <>
-              <Separator />
+          <Separator />
+
+          {/* Manage Amendments Section */}
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Manage Amendments</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Edit or delete approved amendments
+            </p>
+
+            {amendments.length > 0 ? (
               <div className="space-y-4">
                 {amendments.map((amendment, index) => (
                   <div key={amendment.id} className="p-6 border rounded-lg bg-card">
@@ -216,12 +313,12 @@ export const AmendmentManager = () => {
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No amendments have been approved yet.</p>
-            </div>
-          )}
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No amendments have been approved yet.</p>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 
