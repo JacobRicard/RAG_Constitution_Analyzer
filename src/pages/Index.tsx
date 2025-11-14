@@ -4,14 +4,15 @@ import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentManager } from "@/components/AmendmentManager";
+import { BillWriter } from "@/components/BillWriter";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager" | "billWriter">("chat");
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -113,6 +114,14 @@ const Index = () => {
               Weakness Analyzer
             </Button>
             <Button
+              variant={activeTab === "billWriter" ? "default" : "ghost"}
+              onClick={() => setActiveTab("billWriter")}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Bill Writer
+            </Button>
+            <Button
               variant={activeTab === "viewer" ? "default" : "ghost"}
               onClick={() => setActiveTab("viewer")}
               className="flex items-center gap-2"
@@ -137,6 +146,7 @@ const Index = () => {
         {activeTab === "chat" && <ConstitutionChat />}
         {activeTab === "validator" && <AmendmentValidator />}
         {activeTab === "analyzer" && <WeaknessAnalyzer />}
+        {activeTab === "billWriter" && <BillWriter />}
         {activeTab === "viewer" && <ConstitutionViewer />}
         {activeTab === "manager" && <AmendmentManager />}
       </main>

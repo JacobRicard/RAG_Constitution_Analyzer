@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-constitution-pdf]
 verify_jwt = false
+
+[functions.generate-bill]
+verify_jwt = false
