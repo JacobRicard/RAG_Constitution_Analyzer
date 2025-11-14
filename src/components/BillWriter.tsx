@@ -18,9 +18,12 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
   const [mode, setMode] = useState<"A" | "B">(initialWeaknesses ? "B" : "A");
   const [policyGoal, setPolicyGoal] = useState("");
   const [weaknesses, setWeaknesses] = useState(initialWeaknesses || "");
+  const [clarification, setClarification] = useState("");
+  const [billTitle, setBillTitle] = useState("");
   const [billText, setBillText] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const { toast } = useToast();
 
   const generateBill = async () => {
@@ -46,6 +49,7 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
         body: { 
           mode,
           input,
+          clarification: mode === "B" ? clarification : undefined,
           constitutionText,
         }
       });
@@ -55,6 +59,7 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
       if (data.billText && data.explanation) {
         setBillText(data.billText);
         setExplanation(data.explanation);
+        setBillTitle(data.title || "Untitled Bill");
         toast({
           title: "Bill Generated",
           description: "Your legislative draft has been created successfully",
@@ -69,6 +74,55 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const downloadBill = async () => {
+    if (!billText || !billTitle) return;
+
+    setIsDownloading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-bill-docx', {
+        body: { 
+          billText,
+          billTitle,
+        }
+      });
+
+      if (error) throw error;
+
+      // Convert base64 to blob
+      const byteCharacters = atob(data.docx);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${billTitle.replace(/[^a-z0-9]/gi, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download Complete",
+        description: "Your bill has been downloaded as a Word document",
+      });
+    } catch (error: any) {
+      console.error('Error downloading bill:', error);
+      toast({
+        title: "Download Failed",
+        description: error.message || "Failed to download bill. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -128,6 +182,17 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
                 className="min-h-[200px]"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clarification">Desired Clarification (Optional)</Label>
+              <Textarea
+                id="clarification"
+                placeholder="Optionally specify what clarification or interpretation you'd like the bill to include..."
+                value={clarification}
+                onChange={(e) => setClarification(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -152,11 +217,32 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
 
         {billText && (
           <div className="space-y-4">
-            <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
-                Bill Text
+                {billTitle}
               </h3>
+              <Button
+                onClick={downloadBill}
+                disabled={isDownloading}
+                variant="outline"
+                size="sm"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Download .docx
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
               <div className="bg-muted p-4 rounded-lg border border-border">
                 <pre className="whitespace-pre-wrap font-mono text-sm">{billText}</pre>
               </div>
