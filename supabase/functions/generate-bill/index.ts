@@ -147,7 +147,6 @@ EXPLANATION:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
@@ -169,7 +168,7 @@ EXPLANATION:
     );
 
   } catch (error: any) {
-    console.error("Error in generate-bill function:", error);
+    // Error in generate-bill function
     return new Response(
       JSON.stringify({ error: error.message || "Failed to generate bill" }),
       { 
