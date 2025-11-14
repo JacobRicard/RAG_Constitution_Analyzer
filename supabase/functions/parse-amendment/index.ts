@@ -23,16 +23,12 @@ serve(async (req) => {
       );
     }
 
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Parsing amendment file:', file.name, 'Type:', file.type);
-    }
+    // File parsing - logging removed for security
 
     const fileText = await extractTextFromDocument(file);
     
     if (!fileText || fileText.length < 10) {
-      if (Deno.env.get('ENVIRONMENT') === 'development') {
-        console.error('Failed to extract meaningful text from document');
-      }
+      // Failed to extract meaningful text from document
       return new Response(
         JSON.stringify({ 
           title: 'Untitled Amendment',
@@ -47,10 +43,7 @@ serve(async (req) => {
     const title = extractTitle(fileText);
     const amendmentText = extractAmendmentText(fileText);
 
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Amendment parsed successfully. Title:', title);
-      console.log('Text length:', amendmentText.length);
-    }
+    // Amendment parsed successfully
 
     return new Response(
       JSON.stringify({ 
@@ -61,9 +54,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.error('Error parsing amendment:', error);
-    }
+    // Error parsing amendment - details not logged for security
     return new Response(
       JSON.stringify({ 
         title: 'Untitled Amendment',
@@ -81,17 +72,13 @@ async function extractTextFromDocument(file: File): Promise<string> {
   // Handle DOCX files
   if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
       file.name.endsWith('.docx')) {
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Processing DOCX file');
-    }
+    // Processing DOCX file
     return await extractTextFromDocx(arrayBuffer);
   }
   
   // Handle PDF files - for now, return empty string with message
   if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('PDF parsing not fully implemented yet');
-    }
+    // PDF parsing not fully implemented yet
     return 'PDF text extraction not available. Please copy and paste the text manually.';
   }
   
@@ -102,9 +89,7 @@ async function extractTextFromDocument(file: File): Promise<string> {
 
 async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
   try {
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Loading DOCX as ZIP...');
-    }
+    // Loading DOCX as ZIP
     const zip = new JSZip();
     await zip.loadAsync(arrayBuffer);
     
@@ -112,9 +97,7 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
     const documentXmlFile = zip.file('word/document.xml');
     
     if (!documentXmlFile) {
-      if (Deno.env.get('ENVIRONMENT') === 'development') {
-        console.error('Could not find document.xml in DOCX');
-      }
+      // Could not find document.xml in DOCX
       return '';
     }
     
@@ -142,14 +125,10 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
       extractedText = text;
     }
     
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Extracted text length:', extractedText.length);
-    }
+    // Extracted text
     return extractedText.trim();
   } catch (error) {
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.error('Error extracting text from DOCX:', error);
-    }
+    // Error extracting text from DOCX
     throw new Error('Failed to parse DOCX file');
   }
 }
