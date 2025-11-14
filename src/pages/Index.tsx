@@ -6,30 +6,74 @@ import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentManager } from "@/components/AmendmentManager";
 import { BillWriter } from "@/components/BillWriter";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn, FileText } from "lucide-react";
+import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn, FileText, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager" | "billWriter">("chat");
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
+  const [checkingApproval, setCheckingApproval] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
+    const checkUserStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setUser(null);
+        setCheckingApproval(false);
+        return;
+      }
+
+      setUser(session.user);
+
+      // Check if user is approved
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('approved')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile?.approved) {
+        navigate('/pending-approval');
+        return;
+      }
+
+      setIsApproved(true);
+
+      // Check if user is admin
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+
+      setIsAdmin(roleData?.role === 'admin');
+      setCheckingApproval(false);
+    };
+
+    checkUserStatus();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (session) {
+        checkUserStatus();
+      } else {
+        setUser(null);
+        setIsApproved(false);
+        setIsAdmin(false);
+        setCheckingApproval(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -44,6 +88,18 @@ const Index = () => {
     navigate('/auth');
   };
 
+  const handleUserApproval = () => {
+    navigate('/user-approval');
+  };
+
+  if (checkingApproval) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-musg-navy" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -54,27 +110,40 @@ const Index = () => {
               <BookOpen className="h-12 w-12 mr-4" />
               <h1 className="text-4xl md:text-5xl font-bold">MUSG Constitution</h1>
             </div>
-            {user ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSignIn}
-                className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-              >
-                <LogIn className="h-4 w-4" />
-                Sign In
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleUserApproval}
+                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                >
+                  <UserCheck className="h-4 w-4" />
+                  User Approval
+                </Button>
+              )}
+              {user ? (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSignIn}
+                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </Button>
+              )}
+            </div>
           </div>
           <p className="text-xl text-center text-white/90 max-w-3xl mx-auto">
             AI-Powered Analysis of the Marquette University Student Government Constitution
