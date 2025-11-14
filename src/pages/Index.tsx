@@ -26,8 +26,7 @@ const Index = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        setUser(null);
-        setCheckingApproval(false);
+        navigate('/auth');
         return;
       }
 
@@ -65,10 +64,7 @@ const Index = () => {
       if (session) {
         checkUserStatus();
       } else {
-        setUser(null);
-        setIsApproved(false);
-        setIsAdmin(false);
-        setCheckingApproval(false);
+        navigate('/auth');
       }
     });
 
