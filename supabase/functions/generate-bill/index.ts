@@ -54,7 +54,7 @@ serve(async (req) => {
   }
 
   try {
-    const { mode, input, constitutionText } = await req.json();
+    const { mode, input, clarification, constitutionText } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -88,6 +88,7 @@ ${input}
 Please draft a complete bill following the template structure and explain which constitutional provisions support it.
 
 Format your response as:
+TITLE: [Short descriptive title]
 BILL_TEXT:
 [Complete bill text here]
 
@@ -107,6 +108,8 @@ Your task:
 
 Write in neutral, formal legislative style with precise, enforceable language.`;
 
+      const clarificationText = clarification ? `\n\nDesired Clarification:\n${clarification}` : "";
+
       userPrompt = `Constitutional Text:
 ${constitutionText || CONSTITUTION_TEXT}
 
@@ -114,11 +117,12 @@ Bill Template:
 ${BILL_TEMPLATE}
 
 Constitutional Weaknesses to Fix:
-${input}
+${input}${clarificationText}
 
 Please draft a bill that fixes these weaknesses and explain how each issue has been addressed.
 
 Format your response as:
+TITLE: [Short descriptive title]
 BILL_TEXT:
 [Complete bill text here]
 
@@ -151,14 +155,16 @@ EXPLANATION:
     const fullResponse = data.choices?.[0]?.message?.content || "";
 
     // Parse the response
+    const titleMatch = fullResponse.match(/TITLE:\s*(.*?)(?:\n|$)/i);
     const billMatch = fullResponse.match(/BILL_TEXT:\s*([\s\S]*?)(?=EXPLANATION:|$)/i);
     const explanationMatch = fullResponse.match(/EXPLANATION:\s*([\s\S]*?)$/i);
 
+    const title = titleMatch ? titleMatch[1].trim() : "MUSG Legislative Draft";
     const billText = billMatch ? billMatch[1].trim() : fullResponse;
     const explanation = explanationMatch ? explanationMatch[1].trim() : "See bill text above for constitutional analysis.";
 
     return new Response(
-      JSON.stringify({ billText, explanation }),
+      JSON.stringify({ title, billText, explanation }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

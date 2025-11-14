@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.generate-bill]
 verify_jwt = false
+
+[functions.generate-bill-docx]
+verify_jwt = false
