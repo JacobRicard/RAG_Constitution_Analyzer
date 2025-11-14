@@ -54,7 +54,51 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { mode, input, clarification, constitutionText } = await req.json();
+    
+    // Input validation
+    if (!mode || !input) {
+      throw new Error("Mode and input are required");
+    }
+
+    if (!['A', 'B'].includes(mode)) {
+      throw new Error("Invalid mode. Must be 'A' or 'B'");
+    }
+
+    if (typeof input !== 'string') {
+      throw new Error("Input must be a string");
+    }
+
+    const maxInputLength = 50000; // 50KB
+    if (input.length > maxInputLength) {
+      throw new Error(`Input must be less than ${maxInputLength} characters`);
+    }
+
+    if (clarification && typeof clarification !== 'string') {
+      throw new Error("Clarification must be a string");
+    }
+
+    if (clarification && clarification.length > 10000) {
+      throw new Error("Clarification must be less than 10,000 characters");
+    }
+
+    if (constitutionText && typeof constitutionText !== 'string') {
+      throw new Error("Constitution text must be a string");
+    }
+
+    if (constitutionText && constitutionText.length > 200000) {
+      throw new Error("Constitution text must be less than 200,000 characters");
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {

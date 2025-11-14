@@ -13,10 +13,32 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { billText, billTitle } = await req.json();
     
+    // Input validation
     if (!billText || !billTitle) {
       throw new Error("Bill text and title are required");
+    }
+
+    if (typeof billText !== 'string' || typeof billTitle !== 'string') {
+      throw new Error("Bill text and title must be strings");
+    }
+
+    if (billTitle.length > 500) {
+      throw new Error("Bill title must be less than 500 characters");
+    }
+
+    if (billText.length > 100000) {
+      throw new Error("Bill text must be less than 100,000 characters");
     }
 
     // Fetch the template

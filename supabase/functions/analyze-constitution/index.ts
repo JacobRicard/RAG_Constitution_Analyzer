@@ -244,6 +244,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Rate limiting: 20 requests per minute per IP
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const now = Date.now();
@@ -272,9 +281,32 @@ serve(async (req) => {
 
     const { question, type } = await req.json();
     
+    // Input validation
     if (!question) {
       return new Response(
         JSON.stringify({ error: 'Question is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (typeof question !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Question must be a string' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const maxQuestionLength = 10000; // 10KB
+    if (question.length > maxQuestionLength) {
+      return new Response(
+        JSON.stringify({ error: `Question must be less than ${maxQuestionLength} characters` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (type && typeof type !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Type must be a string' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
