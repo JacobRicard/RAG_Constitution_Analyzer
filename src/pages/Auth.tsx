@@ -18,15 +18,40 @@ export default function Auth() {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/');
-      }
-    });
+        // Check if user is approved
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('approved')
+          .eq('id', session.user.id)
+          .single();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (profile?.approved) {
+          navigate('/');
+        } else {
+          navigate('/pending-approval');
+        }
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate('/');
+        // Check if user is approved
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('approved')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile?.approved) {
+          navigate('/');
+        } else {
+          navigate('/pending-approval');
+        }
       }
     });
 
@@ -68,7 +93,8 @@ export default function Auth() {
             setError(error.message);
           }
         } else {
-          setError('Account created successfully! You can now login.');
+          setError('Account created successfully! Your account is pending approval. Please wait for an administrator to approve your access.');
+          setIsLogin(true);
         }
       }
     } catch (err) {
