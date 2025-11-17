@@ -79,9 +79,20 @@ serve(async (req) => {
       );
     }
 
-    // Read the PDF file and convert to base64
-    const pdfPath = new URL('../../public/musg-constitution.pdf', import.meta.url).pathname;
-    const pdfBytes = await Deno.readFile(pdfPath);
+    // Fetch the PDF file from the public URL and convert to base64
+    const pdfUrl = `${SUPABASE_URL.replace('/v1', '')}/storage/v1/object/public/public/musg-constitution.pdf`;
+    console.log('Fetching PDF from:', pdfUrl);
+    
+    const pdfResponse = await fetch(pdfUrl);
+    if (!pdfResponse.ok) {
+      console.error('Failed to fetch PDF:', pdfResponse.status);
+      return new Response(
+        JSON.stringify({ error: 'Failed to load constitution PDF' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
     const base64Pdf = btoa(String.fromCharCode(...pdfBytes));
 
     // Get approved amendments
