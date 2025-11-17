@@ -1,7 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { constitutionText } from './constitution.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,361 +25,114 @@ setInterval(() => {
   }
 }, 3600000);
 
-// Import the full constitution text from the parsed PDF
-const constitutionContext = await fetch('https://wnoghpdhszsthawvarvk.supabase.co/storage/v1/object/public/constitution/full-text.txt')
-  .then(res => res.text())
-  .catch(() => `MARQUETTE UNIVERSITY STUDENT GOVERNMENT
-CONSTITUTION
-
-APPROVED BY MUSG (FORMERLY ASMU) SENATE 1/26/95
-APPROVED BY VICE PRESIDENT FOR BELONGING AND STUDENT AFFAIRS 2/9/95
-MAJOR REVISION 11/30/00, VPBSA APPROVAL 9/26/01
-Last Amended: March 15, 2025
-
-This constitution includes all supporting documents: By-Laws, Budget Approval Procedures, Election Rules, Financial Policies, Senate Standing Rules, Senior Speaker Selection Procedures, Student Organization Recognition Procedures, and University Committee Student Representation Procedures.
-
-For specific questions about Senate Standing Rules, refer to the section on attendance, quorum, and parliamentary procedures detailed within the full constitution document.
-`);
-Section 2: The Outreach Vice President shall be recommended by the Outreach Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
-Section 3: The Financial Vice President shall be recommended by the Financial Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
-Section 4: The Communications Vice President shall be recommended by the Communications Selection Committee and approved by a two-thirds affirmative vote of the present Senate.
-Section 5: The Legislative Vice President shall be elected from the membership of MUSG by a majority vote of the seated Senate.
-
-ARTICLE VII – MEETINGS
-Section 1-7: Various departments must meet at least once per month during fall and spring semesters. Quorum is defined as greater than 50% of current membership.
-
-ARTICLE VIII – FINANCES
-The Financial Vice President shall manage MUSG finances under Senate oversight. All expenditures must follow proper approval procedures as outlined in the Financial Policies.
-
-ARTICLE IX – IMPEACHMENT AND REMOVAL
-Officers can be removed for cause through specific procedures involving the Senate. A two-thirds vote of the seated Senate shall be necessary to facilitate the removal of any person holding an elected position in MUSG.
-
-ARTICLE X – CONSTITUTIONAL AMENDMENTS
-Amendments require a two-thirds vote of the Senate and approval from the Vice President for Belonging and Student Affairs.
-
-===== BY-LAWS =====
-
-ARTICLE I – EXECUTIVE BOARD
-The Executive Board, chaired by the President, is comprised of the President, Executive Vice President, Financial Vice President, Communications Vice President, Legislative Vice President, and Outreach Vice President. The Executive Board meets at least once per month during the fall and spring semesters and is responsible for overseeing MUSG operations and strategic direction.
-
-ARTICLE II – EXECUTIVE DEPARTMENT
-The Executive Department, chaired by the Executive Vice President, consists of the Chief of Staff and Campus Activities Board Liaison. The Executive Vice President oversees day-to-day operations, chairs the Student Organization Funding Committee, and manages the coordination between MUSG departments.
-
-ARTICLE III – PRESIDENT
-Responsibilities include:
-- Serving as chief executive and spokesperson for MUSG
-- Chairing the Executive Board
-- Signing or vetoing legislation passed by the Senate
-- Appointing members to various committees
-- Managing overall MUSG operations
-
-ARTICLE IV – FINANCIAL DEPARTMENT  
-The Financial Department, chaired by the Financial Vice President, consists of Three (3) Financial Office Assistants. The Financial Vice President is responsible for:
-- Managing the MUSG Annual Operating Budget
-- Chairing the Budget Committee
-- Serving as a voting member of the Student Organization Funding Committee
-- Overseeing all financial transactions and maintaining financial records
-- Preparing financial reports for the Senate
-
-ARTICLE V – COMMUNICATIONS DEPARTMENT
-The Communications Department, chaired by the Communications Vice President, consists of Three (3) Directors, Graphic Design Assistants, Multimedia Assistants, and Public Relations Assistants. Responsibilities include managing MUSG's public relations, social media, website, marketing materials, and communications strategy.
-
-ARTICLE VI – SENATE
-The Senate, chaired by the Legislative Vice President, consists of the Legislative Clerk and Academic and Residential Senators. The Senate is the legislative body of MUSG responsible for:
-- Passing legislation and resolutions
-- Approving the annual budget
-- Confirming appointments of Vice Presidents
-- Representing student concerns
-
-Senate Standing Committees include:
-1. Business and Administration Committee – Reviews MUSG appointments and internal operations
-2. External Relations Committee – Handles relationships with university administration and external organizations  
-3. Student Organization Funding Committee (SOF) – Allocates Student Activity Fee funds to student organizations. The Executive Vice President serves as Chair of this committee.
-
-ARTICLE VII – OUTREACH DEPARTMENT
-The Outreach Department, chaired by the Outreach Vice President, consists of the Senior Speaker Coordinator, Administrative Assistant, Coordinator for Diversity, Equity, and Social Justice, Coordinator for Community Engagement, Coordinator for Sustainability, and Office Receptionists.
-
-ARTICLE VIII – OFFICER DESCRIPTIONS
-
-President:
-- Chief executive officer of MUSG
-- Chairs Executive Board meetings
-- Signs or vetoes legislation
-- Serves as primary spokesperson
-
-Executive Vice President:  
-- Chairs the Executive Department
-- CHAIRS THE STUDENT ORGANIZATION FUNDING COMMITTEE (SOF)
-- Oversees day-to-day MUSG operations
-- Becomes President if that office is vacated
-
-Financial Vice President:
-- Manages MUSG finances and budget
-- Chairs the Budget Committee  
-- Voting member of SOF Committee
-- Prepares financial reports
-
-Communications Vice President:
-- Manages all MUSG communications
-- Oversees marketing and public relations
-- Maintains MUSG website and social media
-
-Legislative Vice President:
-- Chairs the Senate
-- Manages Senate legislative process
-- Coordinates Senate committees
-
-Outreach Vice President:
-- Manages community engagement initiatives
-- Coordinates diversity and social justice programs
-- Oversees sustainability efforts
-
-===== FINANCIAL POLICIES =====
-
-SECTION I – AUTHORITY
-The Marquette University Student Government (MUSG) Financial Policies define the policies and procedures which pertain to the collection and distribution of MUSG funds, as mandated by Article VIII of the MUSG Constitution.
-
-SECTION II – DEFINITIONS
-
-1. MUSG Annual Operating Budget – Comprised of revenues from the MUSG portion of the Student Activity Fee (SAF) and derived funds and their disbursement for the fiscal year of July 1 to June 30.
-
-2. MUSG Budget Committee – Standing committee of MUSG responsible for compiling and submitting annual budget recommendations. Voting members shall be the Financial Vice President as Chair, President, one Academic Senator, one Residential Senator and the Vice President for Belonging and Student Affairs or designee.
-
-3. Student Organization Funding Committee (SOF) – Standing committee of MUSG responsible for compiling and overseeing the periodic allocations of the Student Activity Fee as it pertains to club sports teams and registered student organizations. 
-
-**VOTING MEMBERS OF SOF COMMITTEE:**
-- Executive Vice President (CHAIR)
-- Financial Vice President  
-- Coordinator for Diversity, Equity, and Social Justice
-- Two Academic Senators
-- Two Residential Senators
-- Vice President for Belonging and Student Affairs or Designee (advisor, must be present)
-
-The Executive Vice President chairs the SOF Committee and is responsible for overseeing the Student Organization Funding process, including organizing meetings, coordinating deliberations, and ensuring proper allocation procedures are followed.
-
-4. Student Activity Fee (SAF) – Assessed by the University against the membership of MUSG. The MUSG portion of the SAF shall be collected by the University for MUSG.
-
-5. Derived Funds – Funds derived from MUSG-sponsored qualifying student services, or any interest earned on the investment of MUSG funds in the Reserve Fund.
-
-SECTION III – STUDENT ORGANIZATION FUNDING POLICIES
-
-The Student Organization Funding Committee (chaired by the Executive Vice President) oversees allocation of Student Activity Fee funds to registered student organizations and club sports teams. Organizations may submit funding requests for:
-- Programming and events
-- Equipment and supplies
-- Travel for competitions or conferences
-- Operating expenses
-
-RESTRICTIONS:
-- No funding for charitable donations or gifts
-- No funding for food except as part of approved programming
-- No funding for alcohol or controlled substances
-- Capital goods require special justification
-
-The SOF Committee meets regularly throughout the academic year to review funding requests. The Executive Vice President, as Chair, is responsible for scheduling meetings, managing the review process, and ensuring all decisions comply with Financial Policies.
-
-SECTION IV – BUDGET PROCESS
-The Financial Vice President prepares the annual MUSG budget in consultation with the Budget Committee. The budget must be approved by a two-thirds vote of the seated Senate.
-
-SECTION V – FINANCIAL OVERSIGHT
-The Financial Vice President maintains all financial records and prepares monthly reports for the Senate. The Executive Vice President, through oversight of the SOF Committee, ensures proper allocation of student organization funds.
-
-===== SENATE STANDING RULES =====
-
-Senate Standing Rules govern the conduct of Senate meetings, including:
-- Meeting procedures and parliamentary rules
-- Voting procedures (simple majority vs. two-thirds majority)
-- Debate rules and time limits
-- Committee structures and responsibilities
-- Legislative processes for bills and resolutions
-
-===== ELECTION RULES =====
-
-MUSG Election Rules govern all student government elections, including:
-- Candidate eligibility and registration procedures
-- Campaign rules and spending limits
-- Voting procedures and ballot format
-- Vote counting and certification
-- Violation procedures and appeals
-
-===== ADDITIONAL GOVERNING DOCUMENTS =====
-
-- Budget Approval Procedures
-- Senior Speaker Selection Procedures  
-- Student Organization Recognition Procedures
-- University Committee Student Representation Procedures
-
-For complete details, refer to the full 50-page MUSG Governing Documents.
-
-Contact: Marquette University Student Government
-Alumni Memorial Union, Room 133
-PO Box 1881, Milwaukee, WI 53201-1881
-414-288-7416
-musg.mu.edu
-`;
-
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
+        JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Rate limiting: 20 requests per minute per IP
-    const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    // Rate limiting
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
     const now = Date.now();
-    const limit = rateLimiter.get(clientIP);
+    const rateLimit = rateLimiter.get(clientIp);
 
-    if (limit) {
-      if (now < limit.resetTime) {
-        if (limit.count >= 20) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Rate limit exceeded. Please wait a moment before making another request.' 
-            }),
-            { 
-              status: 429, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        limit.count++;
-      } else {
-        rateLimiter.set(clientIP, { count: 1, resetTime: now + 60000 });
+    if (rateLimit && now < rateLimit.resetTime) {
+      if (rateLimit.count >= 20) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+      rateLimit.count++;
     } else {
-      rateLimiter.set(clientIP, { count: 1, resetTime: now + 60000 });
+      rateLimiter.set(clientIp, { count: 1, resetTime: now + 60000 });
     }
 
     const { question, type } = await req.json();
-    
-    // Input validation
-    if (!question) {
+
+    if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Question is required' }),
+        JSON.stringify({ error: 'Invalid or missing question parameter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (typeof question !== 'string') {
+    if (question.length > 1000) {
       return new Response(
-        JSON.stringify({ error: 'Question must be a string' }),
+        JSON.stringify({ error: 'Question is too long (max 1000 characters)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const maxQuestionLength = 10000; // 10KB
-    if (question.length > maxQuestionLength) {
+    if (type && !['question', 'validate'].includes(type)) {
       return new Response(
-        JSON.stringify({ error: `Question must be less than ${maxQuestionLength} characters` }),
+        JSON.stringify({ error: 'Invalid type parameter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (type && typeof type !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'Type must be a string' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Get approved amendments
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: amendments } = await supabase
+      .from('amendments')
+      .select('title, amendment_text, approved_at')
+      .eq('status', 'approved')
+      .order('approved_at', { ascending: true });
 
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      console.log('Analyzing constitution:', type || 'general', question.substring(0, 100));
-    }
-
-    // Fetch approved amendments from database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
-    const amendmentsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/amendments?status=eq.approved&order=approved_at.asc`,
-      {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        }
-      }
-    );
-
-    const amendments = await amendmentsResponse.json();
-    
-    let amendmentsText = '';
+    let amendmentsContext = '';
     if (amendments && amendments.length > 0) {
-      amendmentsText = '\n\nAMENDMENTS:\n\n';
-      amendments.forEach((amendment: any, index: number) => {
-        amendmentsText += `AMENDMENT ${index + 1} (Approved: ${new Date(amendment.approved_at).toLocaleDateString()})\n`;
-        amendmentsText += `Title: ${amendment.title}\n\n`;
-        amendmentsText += amendment.amendment_text + '\n\n';
-      });
+      amendmentsContext = '\n\nAPPROVED AMENDMENTS:\n' + 
+        amendments.map(a => `- ${a.title} (Approved: ${a.approved_at})\n${a.amendment_text}`).join('\n\n');
     }
+
+    const fullContext = constitutionText + amendmentsContext;
 
     let systemPrompt = '';
-    
     if (type === 'validate') {
-      systemPrompt = `You are an expert constitutional validator for the Marquette University Student Government (MUSG) Constitution. Your role is to thoroughly validate proposed amendments for structural correctness, proper citations, and compliance.
+      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
 
-When validating amendments, you MUST check:
+1. Constitutional compliance and conflicts
+2. Proper citation of existing articles and sections across ALL governing documents
+3. Correct placement within the constitution structure
+4. Clarity and specificity of language
+5. Potential unintended consequences
+6. Alignment with MUSG's mission and bylaws
+7. Procedural requirements for passage
 
-1. **CITATION ACCURACY**: 
-   - Verify all referenced articles, sections, and subsections exist in the actual constitution
-   - Flag any citations to non-existent provisions
-   - Check if article/section numbers are correct
+Provide detailed analysis including:
+- Whether the amendment properly cites actual sections and rules from the governing documents
+- Any conflicts with existing constitutional provisions or supporting documents
+- Suggestions for improvement
+- Required approval procedures
+- Impact on related constitutional provisions and supporting documents
 
-2. **PLACEMENT CORRECTNESS**:
-   - Determine if the amendment is being added to the correct article/section
-   - Verify the proposed location makes structural sense
-   - Check if it should modify, add, or replace existing text
-
-3. **CONSTITUTIONAL COMPLIANCE**:
-   - Ensure the amendment follows the proper amendment procedures (Article X)
-   - Check if it conflicts with other constitutional provisions
-   - Verify it doesn't violate fundamental constitutional principles
-
-4. **FORMATTING AND STRUCTURE**:
-   - Check proper numbering and formatting
-   - Verify section/subsection structure is consistent
-   - Ensure clarity and proper legal language
-
-5. **CROSS-REFERENCES**:
-   - Validate all internal references to other parts of the constitution
-   - Check if the amendment requires corresponding changes elsewhere
-
-**IMPORTANT**: Be very specific about any errors. If an amendment cites "Article VII, Section 3" but Section 3 doesn't exist, explicitly state this. If it should be placed in Article IV instead of Article V, explain why.
-
-Here is the MUSG Constitution:
-
-${constitutionContext}${amendmentsText}
-
-Provide your validation in this format:
-- **VALID** or **INVALID** or **NEEDS REVISION**
-- **Citation Check**: [findings]
-- **Placement Check**: [findings]  
-- **Compliance Check**: [findings]
-- **Recommendations**: [specific suggestions for fixes if needed]`;
+Be thorough and reference specific sections of the constitution and supporting documents.`;
     } else {
-      systemPrompt = `You are an expert assistant specializing in the Marquette University Student Government (MUSG) Constitution. Your role is to help students, faculty, and administrators understand the constitution's provisions, procedures, and organizational structure.
+      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. Answer questions accurately based on the provided constitution text, which includes:
+- Main Constitution
+- Senate Standing Rules (including attendance policies, quorum requirements, and parliamentary procedures)
+- By-Laws
+- Financial Policies
+- Budget Approval Procedures
+- Election Rules
+- Senior Speaker Selection Procedures
+- Student Organization Recognition Procedures
+- University Committee Student Representation Procedures
 
-When answering questions:
-1. Provide accurate information based on the constitution text
-2. Cite specific articles and sections when relevant
-3. Explain complex procedures in clear, accessible language
-4. If a question falls outside the constitution's scope, acknowledge this and provide context
-5. Be concise but thorough
-6. Use a professional yet friendly tone
-
-Here is the MUSG Constitution:
-
-${constitutionContext}${amendmentsText}`;
+When answering questions about any of these documents, cite the specific section and provide relevant context. Be precise and reference the actual text when appropriate.`;
     }
 
+    console.log('Calling OpenAI API for constitution analysis...');
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -385,41 +142,38 @@ ${constitutionContext}${amendmentsText}`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: question
-          }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Constitution and Supporting Documents:\n${fullContext}\n\nQuestion/Request: ${question}` }
         ],
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 1500,
       }),
     });
 
     if (!response.ok) {
+      const errorData = await response.text();
+      console.error('OpenAI API error:', response.status, errorData);
+      
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          JSON.stringify({ error: 'OpenAI API rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      }
-      if (response.status === 402) {
+      } else if (response.status === 503) {
         return new Response(
-          JSON.stringify({ error: 'AI service temporarily unavailable. Please add credits to continue.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'OpenAI service is temporarily unavailable. Please try again later.' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      return new Response(
+        JSON.stringify({ error: 'Failed to get response from AI service' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();
-    const answer = data.choices?.[0]?.message?.content || 'Unable to generate response';
+    const answer = data.choices[0].message.content;
 
     console.log('Constitution analysis complete');
 
@@ -427,10 +181,12 @@ ${constitutionContext}${amendmentsText}`;
       JSON.stringify({ answer }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error('Error in analyze-constitution function:', error);
+    console.error('Error in constitution analysis:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
