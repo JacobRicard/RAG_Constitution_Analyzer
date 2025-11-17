@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getDocument } from 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -88,6 +89,20 @@ serve(async (req) => {
 
     console.log('Processing constitution analysis with PDF...');
 
+    // Extract text from PDF
+    const pdfData = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+    const pdf = await getDocument({ data: pdfData }).promise;
+    let pdfText = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      pdfText += `\n\n--- Page ${i} ---\n\n${pageText}`;
+    }
+
+    console.log(`Extracted ${pdfText.length} characters from ${pdf.numPages} pages`);
+
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: amendments } = await supabase
@@ -139,27 +154,8 @@ When answering questions about any of these documents, cite the specific section
 
     console.log('Calling OpenAI GPT-4o for constitution analysis...');
     
-    // Build the user message content with PDF and text
-    const userContent: any[] = [
-      {
-        type: "image_url",
-        image_url: {
-          url: `data:application/pdf;base64,${pdfBase64}`
-        }
-      }
-    ];
-
-    if (amendmentsContext) {
-      userContent.push({
-        type: "text",
-        text: `Question/Request: ${question}\n\n${amendmentsContext}`
-      });
-    } else {
-      userContent.push({
-        type: "text",
-        text: `Question/Request: ${question}`
-      });
-    }
+    // Build the user message with extracted PDF text
+    const userMessage = `CONSTITUTION AND SUPPORTING DOCUMENTS:\n${pdfText}\n\n${amendmentsContext}\n\nQuestion/Request: ${question}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -171,7 +167,7 @@ When answering questions about any of these documents, cite the specific section
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent }
+          { role: 'user', content: userMessage }
         ],
         max_tokens: 2000,
       }),
