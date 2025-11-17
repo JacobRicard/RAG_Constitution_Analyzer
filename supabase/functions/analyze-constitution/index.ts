@@ -1,7 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { constitutionText } from './constitution-data.ts';
+
+// Read the full parsed constitution document
+const constitutionText = await Deno.readTextFile(new URL('./full-constitution-parsed.txt', import.meta.url).pathname);
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -98,7 +100,7 @@ serve(async (req) => {
 
     let systemPrompt = '';
     if (type === 'validate') {
-      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution for:
+      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
 
 1. Constitutional compliance and conflicts
 2. Proper citation of existing articles and sections across ALL governing documents
@@ -109,21 +111,26 @@ serve(async (req) => {
 7. Procedural requirements for passage
 
 Provide detailed analysis including:
-- Whether the amendment properly cites actual sections from the constitution
-- Any conflicts with existing constitutional provisions
+- Whether the amendment properly cites actual sections and rules from the governing documents
+- Any conflicts with existing constitutional provisions or supporting documents
 - Suggestions for improvement
 - Required approval procedures
-- Impact on related constitutional provisions
+- Impact on related constitutional provisions and supporting documents
 
-Be thorough and reference specific sections of the constitution.`;
+Be thorough and reference specific sections of the constitution and supporting documents.`;
     } else {
-      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution. Answer questions accurately based on the provided constitution text.
+      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. Answer questions accurately based on the provided constitution text, which includes:
+- Main Constitution
+- Senate Standing Rules (including attendance policies, quorum requirements, and parliamentary procedures)
+- By-Laws
+- Financial Policies
+- Budget Approval Procedures
+- Election Rules
+- Senior Speaker Selection Procedures
+- Student Organization Recognition Procedures
+- University Committee Student Representation Procedures
 
-The constitution text includes the main MUSG Constitution articles. Supporting documents like Senate Standing Rules, By-Laws, Financial Policies, Budget Approval Procedures, Election Rules, and other governing documents are referenced but not included in full detail.
-
-For questions about the main constitution articles and structure, provide detailed answers citing specific sections. For questions requiring detailed information from supporting documents that are not fully provided, acknowledge what information is available in the main constitution and explain that the specific supporting document would need to be consulted for complete details.
-
-Be precise and reference the actual text when appropriate.`;
+When answering questions about any of these documents, cite the specific section and provide relevant context. Be precise and reference the actual text when appropriate.`;
     }
 
     console.log('Calling OpenAI API for constitution analysis...');
