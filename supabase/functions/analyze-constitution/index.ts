@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { constitutionText } from './constitution-data.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -56,7 +57,7 @@ serve(async (req) => {
       rateLimiter.set(clientIp, { count: 1, resetTime: now + 60000 });
     }
 
-    const { question, type, pdfBase64 } = await req.json();
+    const { question, type } = await req.json();
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return new Response(
@@ -79,14 +80,7 @@ serve(async (req) => {
       );
     }
 
-    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid PDF data' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Processing constitution analysis with PDF...');
+    console.log('Processing constitution analysis...');
 
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -139,19 +133,8 @@ When answering questions about any of these documents, cite the specific section
 
     console.log('Calling Lovable AI (Gemini) for constitution analysis...');
     
-    // Build message content with PDF (Gemini natively supports PDFs)
-    const userContent: any[] = [
-      {
-        type: "text",
-        text: `PDF Document attached. ${amendmentsContext}\n\nQuestion/Request: ${question}`
-      },
-      {
-        type: "image_url",
-        image_url: {
-          url: `data:application/pdf;base64,${pdfBase64}`
-        }
-      }
-    ];
+    // Build full context with constitution text and amendments
+    const fullContext = `CONSTITUTION AND SUPPORTING DOCUMENTS:\n${constitutionText}\n\n${amendmentsContext}\n\nQuestion/Request: ${question}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -163,7 +146,7 @@ When answering questions about any of these documents, cite the specific section
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent }
+          { role: 'user', content: fullContext }
         ],
         max_tokens: 2000,
       }),
