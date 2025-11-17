@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getDocument } from 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs';
+import pdfParse from 'https://esm.sh/pdf-parse@1.1.1';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -89,19 +89,12 @@ serve(async (req) => {
 
     console.log('Processing constitution analysis with PDF...');
 
-    // Extract text from PDF
-    const pdfData = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-    const pdf = await getDocument({ data: pdfData }).promise;
-    let pdfText = '';
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      pdfText += `\n\n--- Page ${i} ---\n\n${pageText}`;
-    }
+    // Extract text from PDF using pdf-parse
+    const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+    const pdfData = await pdfParse(pdfBuffer);
+    const pdfText = pdfData.text;
 
-    console.log(`Extracted ${pdfText.length} characters from ${pdf.numPages} pages`);
+    console.log(`Extracted ${pdfText.length} characters from ${pdfData.numpages} pages`);
 
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
