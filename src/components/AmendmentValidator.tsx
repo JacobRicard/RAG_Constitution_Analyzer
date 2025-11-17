@@ -86,21 +86,6 @@ export const AmendmentValidator = () => {
     setAnalysis("");
 
     try {
-      // Fetch PDF and convert to base64
-      const pdfResponse = await fetch('/musg-constitution.pdf');
-      if (!pdfResponse.ok) {
-        throw new Error('Failed to load constitution PDF');
-      }
-      const pdfBlob = await pdfResponse.blob();
-      const pdfBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(pdfBlob);
-      });
-
       const { data, error } = await supabase.functions.invoke('analyze-constitution', {
         body: { 
           type: 'validate',
@@ -108,8 +93,7 @@ export const AmendmentValidator = () => {
 
 ${amendmentText}
 
-Check all citations, verify placement correctness, ensure constitutional compliance, validate formatting, and check all cross-references.`,
-          pdfBase64
+Check all citations, verify placement correctness, ensure constitutional compliance, validate formatting, and check all cross-references.`
         }
       });
 
