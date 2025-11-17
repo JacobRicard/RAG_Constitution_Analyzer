@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { constitutionText } from './constitution-data.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -56,7 +57,7 @@ serve(async (req) => {
       rateLimiter.set(clientIp, { count: 1, resetTime: now + 60000 });
     }
 
-    const { question, type, pdfBase64 } = await req.json();
+    const { question, type } = await req.json();
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return new Response(
@@ -79,14 +80,7 @@ serve(async (req) => {
       );
     }
 
-    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid PDF data' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Processing constitution analysis with PDF...');
+    console.log('Processing constitution analysis...');
 
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -102,9 +96,11 @@ serve(async (req) => {
         amendments.map(a => `- ${a.title} (Approved: ${a.approved_at})\n${a.amendment_text}`).join('\n\n');
     }
 
+    const fullContext = constitutionText + amendmentsContext;
+
     let systemPrompt = '';
     if (type === 'validate') {
-      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution PDF and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
+      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
 
 1. Constitutional compliance and conflicts
 2. Proper citation of existing articles and sections across ALL governing documents
@@ -123,7 +119,7 @@ Provide detailed analysis including:
 
 Be thorough and reference specific sections of the constitution and supporting documents.`;
     } else {
-      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. The PDF contains:
+      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. The constitution includes:
 - Main Constitution
 - Senate Standing Rules (including attendance policies, quorum requirements, and parliamentary procedures)
 - By-Laws
@@ -139,22 +135,6 @@ When answering questions about any of these documents, cite the specific section
 
     console.log('Calling Lovable AI Gateway (Gemini) for constitution analysis...');
     
-    // Build the user message content with PDF and text
-    const userContent: any[] = [
-      {
-        type: "image_url",
-        image_url: {
-          url: `data:application/pdf;base64,${pdfBase64}`
-        }
-      },
-      {
-        type: "text",
-        text: amendmentsContext 
-          ? `Question/Request: ${question}\n\n${amendmentsContext}` 
-          : `Question/Request: ${question}`
-      }
-    ];
-
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -165,7 +145,7 @@ When answering questions about any of these documents, cite the specific section
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent }
+          { role: 'user', content: `Constitution and Supporting Documents:\n${fullContext}\n\nQuestion/Request: ${question}` }
         ],
         max_tokens: 2000,
       }),
