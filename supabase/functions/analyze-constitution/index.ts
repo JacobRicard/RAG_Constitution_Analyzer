@@ -56,7 +56,7 @@ serve(async (req) => {
       rateLimiter.set(clientIp, { count: 1, resetTime: now + 60000 });
     }
 
-    const { question, type } = await req.json();
+    const { question, type, pdfBase64 } = await req.json();
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return new Response(
@@ -79,21 +79,14 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the PDF file from the public URL and convert to base64
-    const pdfUrl = `${SUPABASE_URL.replace('/v1', '')}/storage/v1/object/public/public/musg-constitution.pdf`;
-    console.log('Fetching PDF from:', pdfUrl);
-    
-    const pdfResponse = await fetch(pdfUrl);
-    if (!pdfResponse.ok) {
-      console.error('Failed to fetch PDF:', pdfResponse.status);
+    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Failed to load constitution PDF' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Missing or invalid PDF data' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
-    const base64Pdf = btoa(String.fromCharCode(...pdfBytes));
+
+    console.log('Processing constitution analysis with PDF...');
 
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -151,7 +144,7 @@ When answering questions about any of these documents, cite the specific section
       {
         type: "image_url",
         image_url: {
-          url: `data:application/pdf;base64,${base64Pdf}`
+          url: `data:application/pdf;base64,${pdfBase64}`
         }
       },
       {
