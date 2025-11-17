@@ -1,9 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import pdfParse from 'https://esm.sh/pdf-parse@1.1.1';
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -89,13 +88,6 @@ serve(async (req) => {
 
     console.log('Processing constitution analysis with PDF...');
 
-    // Extract text from PDF using pdf-parse
-    const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-    const pdfData = await pdfParse(pdfBuffer);
-    const pdfText = pdfData.text;
-
-    console.log(`Extracted ${pdfText.length} characters from ${pdfData.numpages} pages`);
-
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: amendments } = await supabase
@@ -145,22 +137,33 @@ Be thorough and reference specific sections of the constitution and supporting d
 When answering questions about any of these documents, cite the specific section and provide relevant context. Be precise and reference the actual text when appropriate.`;
     }
 
-    console.log('Calling OpenAI GPT-4o for constitution analysis...');
+    console.log('Calling Lovable AI (Gemini) for constitution analysis...');
     
-    // Build the user message with extracted PDF text
-    const userMessage = `CONSTITUTION AND SUPPORTING DOCUMENTS:\n${pdfText}\n\n${amendmentsContext}\n\nQuestion/Request: ${question}`;
+    // Build message content with PDF (Gemini natively supports PDFs)
+    const userContent: any[] = [
+      {
+        type: "text",
+        text: `PDF Document attached. ${amendmentsContext}\n\nQuestion/Request: ${question}`
+      },
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:application/pdf;base64,${pdfBase64}`
+        }
+      }
+    ];
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
+          { role: 'user', content: userContent }
         ],
         max_tokens: 2000,
       }),
@@ -168,17 +171,17 @@ When answering questions about any of these documents, cite the specific section
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API error:', response.status, errorData);
+      console.error('Lovable AI error:', response.status, errorData);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'OpenAI rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      } else if (response.status === 503) {
+      } else if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'OpenAI service is temporarily unavailable. Please try again later.' }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
