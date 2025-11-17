@@ -16,6 +16,21 @@ export const WeaknessAnalyzer = () => {
     setAnalysis("");
 
     try {
+      // Fetch PDF and convert to base64
+      const pdfResponse = await fetch('/musg-constitution.pdf');
+      if (!pdfResponse.ok) {
+        throw new Error('Failed to load constitution PDF');
+      }
+      const pdfBlob = await pdfResponse.blob();
+      const pdfBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(pdfBlob);
+      });
+
       const { data, error } = await supabase.functions.invoke('analyze-constitution', {
         body: { 
           question: `Analyze the MUSG Constitution for weaknesses and problematic language. Identify instances of:
@@ -29,7 +44,8 @@ export const WeaknessAnalyzer = () => {
 - Discretionary language without clear guidelines
 - Constitutionally dangerous provisions
 
-Provide specific examples with article and section references, and explain why each instance is problematic.`
+Provide specific examples with article and section references, and explain why each instance is problematic.`,
+          pdfBase64
         }
       });
 
