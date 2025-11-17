@@ -1,9 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { constitutionText } from './constitution-data.ts';
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -57,7 +56,7 @@ serve(async (req) => {
       rateLimiter.set(clientIp, { count: 1, resetTime: now + 60000 });
     }
 
-    const { question, type } = await req.json();
+    const { question, type, pdfBase64 } = await req.json();
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return new Response(
@@ -80,7 +79,14 @@ serve(async (req) => {
       );
     }
 
-    console.log('Processing constitution analysis...');
+    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Missing or invalid PDF data' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Processing constitution analysis with PDF...');
 
     // Get approved amendments
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -96,11 +102,9 @@ serve(async (req) => {
         amendments.map(a => `- ${a.title} (Approved: ${a.approved_at})\n${a.amendment_text}`).join('\n\n');
     }
 
-    const fullContext = constitutionText + amendmentsContext;
-
     let systemPrompt = '';
     if (type === 'validate') {
-      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
+      systemPrompt = `You are a constitutional expert analyzing amendments to the MUSG Constitution. Review the proposed amendment against the current constitution PDF and ALL supporting documents (including Senate Standing Rules, Financial Policies, By-Laws, etc.) for:
 
 1. Constitutional compliance and conflicts
 2. Proper citation of existing articles and sections across ALL governing documents
@@ -119,7 +123,7 @@ Provide detailed analysis including:
 
 Be thorough and reference specific sections of the constitution and supporting documents.`;
     } else {
-      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. The constitution includes:
+      systemPrompt = `You are a helpful assistant with expertise in the Marquette University Student Government Constitution and ALL its supporting documents. The PDF contains:
 - Main Constitution
 - Senate Standing Rules (including attendance policies, quorum requirements, and parliamentary procedures)
 - By-Laws
@@ -133,19 +137,41 @@ Be thorough and reference specific sections of the constitution and supporting d
 When answering questions about any of these documents, cite the specific section and provide relevant context. Be precise and reference the actual text when appropriate.`;
     }
 
-    console.log('Calling Lovable AI Gateway (Gemini) for constitution analysis...');
+    console.log('Calling OpenAI GPT-4o for constitution analysis...');
     
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Build the user message content with PDF and text
+    const userContent: any[] = [
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:application/pdf;base64,${pdfBase64}`
+        }
+      }
+    ];
+
+    if (amendmentsContext) {
+      userContent.push({
+        type: "text",
+        text: `Question/Request: ${question}\n\n${amendmentsContext}`
+      });
+    } else {
+      userContent.push({
+        type: "text",
+        text: `Question/Request: ${question}`
+      });
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Constitution and Supporting Documents:\n${fullContext}\n\nQuestion/Request: ${question}` }
+          { role: 'user', content: userContent }
         ],
         max_tokens: 2000,
       }),
@@ -153,21 +179,16 @@ When answering questions about any of these documents, cite the specific section
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Lovable AI Gateway error:', response.status, errorData);
+      console.error('OpenAI API error:', response.status, errorData);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: 'OpenAI rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } else if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Payment required. Please add credits to your Lovable AI workspace.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else if (response.status === 503) {
         return new Response(
-          JSON.stringify({ error: 'AI service is temporarily unavailable. Please try again later.' }),
+          JSON.stringify({ error: 'OpenAI service is temporarily unavailable. Please try again later.' }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
