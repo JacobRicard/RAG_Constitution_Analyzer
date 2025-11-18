@@ -16,6 +16,46 @@ export const SetupVectorStore = () => {
     setResult(null);
 
     try {
+      // Step 1: Upload PDFs to storage first
+      const files = [
+        "CONSTITUTION.pdf",
+        "CONSTITUTION_BY-LAWS.pdf",
+        "BUDGET_APPROVAL_PROCEDURES.pdf",
+        "ELECTION_RULES.pdf",
+        "FINANCIAL_POLICIES.pdf",
+        "SENATE_STANDING_RULES.pdf",
+        "SENIOR_SPEAKER_SELECTION_PROCEDURES.pdf",
+        "UNIVERSITY_COMMITTEE_STUDENT_REPRESENTATION_PROCEDURES.pdf"
+      ];
+
+      toast({
+        title: "Uploading files to storage...",
+        description: "Step 1 of 2: Uploading constitution documents",
+      });
+
+      // Upload each file to Supabase storage
+      for (const fileName of files) {
+        const response = await fetch(`/documents/${fileName}`);
+        const blob = await response.blob();
+        
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, blob, {
+            upsert: true,
+            contentType: 'application/pdf'
+          });
+
+        if (uploadError && !uploadError.message.includes('already exists')) {
+          console.error(`Failed to upload ${fileName}:`, uploadError);
+        }
+      }
+
+      toast({
+        title: "Creating vector store...",
+        description: "Step 2 of 2: Setting up AI document search",
+      });
+
+      // Step 2: Now call the setup function
       const { data, error } = await supabase.functions.invoke("setup-vector-store");
 
       if (error) {
