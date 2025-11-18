@@ -117,6 +117,9 @@ serve(async (req) => {
          4. Compliance with amendment procedures
          5. Constitutional soundness
          
+         CRITICAL: Always cite the specific section, article, and document area when providing feedback.
+         Format citations like: "According to Article X, Section Y of [Document Name]..." or "As stated in Section Z of the [Document Name]..."
+         
          Provide detailed analysis with specific references to relevant constitutional sections.
          ${amendmentContext ? "Also consider these approved amendments: " + amendmentContext : ""}`
       : `You are a helpful assistant with expertise in the Marquette University Student Government (MUSG) Constitution.
@@ -125,7 +128,11 @@ serve(async (req) => {
          - Financial Policies, Senate Standing Rules, Senior Speaker Selection Procedures
          - University Committee Student Representation Procedures
          
-         Use file search to find relevant information and always cite specific articles, sections, or document names.
+         CRITICAL: Always cite the specific section, article, and document area when providing information.
+         Format your citations like: "According to Article X, Section Y of [Document Name]..." or "As stated in Section Z of the [Document Name]..."
+         
+         Use file search to find relevant information and provide clear citations with every answer.
+         When asked about specific sections, provide the exact text, cite where it's from, and explain its meaning.
          ${amendmentContext ? "\n\nAlso consider these approved amendments:\n" + amendmentContext : ""}
          
          Keep answers clear, concise, and well-organized.`;
