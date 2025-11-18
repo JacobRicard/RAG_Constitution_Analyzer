@@ -106,80 +106,196 @@ serve(async (req) => {
         amendments.map((a) => `${a.title}:\n${a.amendment_text}`).join("\n\n");
     }
 
-    const systemPrompt = type === "validate"
+    const instructions = type === "validate"
       ? `You are a constitutional expert for Marquette University Student Government (MUSG). 
-         You have access to the complete MUSG Constitution and all supporting documents through the file search tool.
+         You have access to the complete MUSG Constitution and all supporting documents through file search.
          
-         Your task is to validate amendment proposals against the constitution.
-         
-         Check for:
+         Validate amendment proposals by checking:
          1. Correct citation of existing articles and sections
          2. Proper placement in constitutional structure
          3. Conflicts with existing provisions
          4. Compliance with amendment procedures
          5. Constitutional soundness
          
-         Provide a detailed analysis with specific references to relevant constitutional sections.
+         Provide detailed analysis with specific references to relevant constitutional sections.
          ${amendmentContext ? "Also consider these approved amendments: " + amendmentContext : ""}`
       : `You are a helpful assistant with expertise in the Marquette University Student Government (MUSG) Constitution.
          You have access to the complete MUSG Constitution and all supporting documents including:
-         - Main Constitution
-         - Constitution By-Laws
-         - Budget Approval Procedures
-         - Election Rules
-         - Financial Policies
-         - Senate Standing Rules
-         - Senior Speaker Selection Procedures
+         - Main Constitution, Constitution By-Laws, Budget Approval Procedures, Election Rules
+         - Financial Policies, Senate Standing Rules, Senior Speaker Selection Procedures
          - University Committee Student Representation Procedures
          
-         Use the file search tool to find relevant information from these documents to answer questions accurately.
-         Always cite specific articles, sections, or document names when referencing information.
+         Use file search to find relevant information and always cite specific articles, sections, or document names.
          ${amendmentContext ? "\n\nAlso consider these approved amendments:\n" + amendmentContext : ""}
          
-         Keep your answers clear, concise, and well-organized.`;
+         Keep answers clear, concise, and well-organized.`;
 
-    // Use OpenAI Chat Completions API with file_search tool
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    console.log("Creating assistant with file_search capability...");
+
+    // Create or get assistant
+    const assistantResponse = await fetch("https://api.openai.com/v1/assistants", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
       },
       body: JSON.stringify({
+        name: "MUSG Constitution Assistant",
+        instructions: instructions,
         model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question }
-        ],
-        tools: [{
-          type: "file_search",
+        tools: [{ type: "file_search" }],
+        tool_resources: {
           file_search: {
             vector_store_ids: [vectorStoreId]
           }
-        }],
-        temperature: 0.7,
-        max_tokens: 1500
-      }),
+        }
+      })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("OpenAI API error:", errorData);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "AI service is currently rate limited. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
+    if (!assistantResponse.ok) {
+      const error = await assistantResponse.json();
+      console.error("Failed to create assistant:", error);
+      throw new Error(`Failed to create assistant: ${JSON.stringify(error)}`);
     }
 
-    const data = await response.json();
-    console.log("OpenAI response received");
+    const assistant = await assistantResponse.json();
+    console.log("Assistant created:", assistant.id);
 
-    const answer = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+    // Create a thread
+    const threadResponse = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({})
+    });
+
+    if (!threadResponse.ok) {
+      const error = await threadResponse.json();
+      console.error("Failed to create thread:", error);
+      throw new Error(`Failed to create thread: ${JSON.stringify(error)}`);
+    }
+
+    const thread = await threadResponse.json();
+    console.log("Thread created:", thread.id);
+
+    // Add message to thread
+    const messageResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: question
+      })
+    });
+
+    if (!messageResponse.ok) {
+      const error = await messageResponse.json();
+      console.error("Failed to add message:", error);
+      throw new Error(`Failed to add message: ${JSON.stringify(error)}`);
+    }
+
+    console.log("Message added to thread");
+
+    // Run the assistant
+    const runResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
+        assistant_id: assistant.id
+      })
+    });
+
+    if (!runResponse.ok) {
+      const error = await runResponse.json();
+      console.error("Failed to create run:", error);
+      throw new Error(`Failed to create run: ${JSON.stringify(error)}`);
+    }
+
+    const run = await runResponse.json();
+    console.log("Run created:", run.id);
+
+    // Poll for completion
+    let runStatus = run.status;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds timeout
+
+    while (runStatus !== "completed" && runStatus !== "failed" && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const statusResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error("Failed to check run status");
+      }
+
+      const statusData = await statusResponse.json();
+      runStatus = statusData.status;
+      attempts++;
+      
+      console.log(`Run status: ${runStatus} (attempt ${attempts})`);
+    }
+
+    if (runStatus !== "completed") {
+      throw new Error(`Run did not complete. Status: ${runStatus}`);
+    }
+
+    // Get messages
+    const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "OpenAI-Beta": "assistants=v2"
+      }
+    });
+
+    if (!messagesResponse.ok) {
+      const error = await messagesResponse.json();
+      throw new Error(`Failed to get messages: ${JSON.stringify(error)}`);
+    }
+
+    const messages = await messagesResponse.json();
+    const assistantMessages = messages.data.filter((msg: any) => msg.role === "assistant");
+    
+    if (assistantMessages.length === 0) {
+      throw new Error("No response from assistant");
+    }
+
+    const answer = assistantMessages[0].content[0].text.value;
+    console.log("Got response from assistant");
+
+    // Clean up - delete thread and assistant
+    await fetch(`https://api.openai.com/v1/threads/${thread.id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "OpenAI-Beta": "assistants=v2"
+      }
+    });
+
+    await fetch(`https://api.openai.com/v1/assistants/${assistant.id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "OpenAI-Beta": "assistants=v2"
+      }
+    });
+
 
     return new Response(
       JSON.stringify({ answer }),
@@ -188,6 +304,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in analyze-constitution function:", error);
+    
+    // Handle rate limit errors
+    if (error instanceof Error && error.message.includes("429")) {
+      return new Response(
+        JSON.stringify({ error: "AI service rate limit exceeded. Please try again in a moment." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "An unexpected error occurred" 
