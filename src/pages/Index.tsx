@@ -5,6 +5,7 @@ import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentManager } from "@/components/AmendmentManager";
 import { BillWriter } from "@/components/BillWriter";
+import { SetupVectorStore } from "@/components/SetupVectorStore";
 import { Button } from "@/components/ui/button";
 import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn, FileText, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager" | "billWriter">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager" | "billWriter" | "setup">("chat");
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
@@ -214,6 +215,7 @@ const Index = () => {
         {activeTab === "billWriter" && <BillWriter />}
         {activeTab === "viewer" && <ConstitutionViewer />}
         {activeTab === "manager" && <AmendmentManager />}
+        {activeTab === "setup" && isAdmin && <SetupVectorStore />}
       </main>
 
       {/* Footer */}
