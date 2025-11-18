@@ -79,7 +79,7 @@ serve(async (req) => {
     console.log("Processing question:", question.substring(0, 100));
 
     // Get or create vector store ID from environment
-    const vectorStoreId = Deno.env.get("OPENAI_VECTOR_STORE_ID");
+    const vectorStoreId = Deno.env.get("OPENAI_VECTOR_STORE_ID")?.trim();
     
     if (!vectorStoreId) {
       console.log("No vector store ID found. You need to set up the vector store first.");
