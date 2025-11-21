@@ -91,6 +91,43 @@ serve(async (req) => {
       );
     }
 
+    console.log("Vector Store ID:", vectorStoreId);
+
+    // Verify the vector store exists and has files
+    try {
+      const vectorStoreResponse = await fetch(`https://api.openai.com/v1/vector_stores/${vectorStoreId}`, {
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
+      });
+
+      if (!vectorStoreResponse.ok) {
+        const errorData = await vectorStoreResponse.json();
+        console.error("Vector store validation failed:", errorData);
+        throw new Error(`Vector store not found or invalid: ${JSON.stringify(errorData)}`);
+      }
+
+      const vectorStore = await vectorStoreResponse.json();
+      console.log("Vector store validated:", { 
+        id: vectorStore.id, 
+        file_counts: vectorStore.file_counts,
+        status: vectorStore.status 
+      });
+
+      if (vectorStore.file_counts?.total === 0) {
+        throw new Error("Vector store has no files. Please run the setup-vector-store function first.");
+      }
+    } catch (error) {
+      console.error("Error validating vector store:", error);
+      return new Response(
+        JSON.stringify({ 
+          error: `Vector store validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch approved amendments
     const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
     const { data: amendments } = await supabase
