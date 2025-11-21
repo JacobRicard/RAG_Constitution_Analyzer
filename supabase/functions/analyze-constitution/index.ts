@@ -274,10 +274,25 @@ serve(async (req) => {
       attempts++;
       
       console.log(`Run status: ${runStatus} (attempt ${attempts})`);
+      
+      // Log detailed error information if run failed
+      if (runStatus === "failed") {
+        console.error("Run failed with error:", JSON.stringify(statusData.last_error, null, 2));
+      }
     }
 
     if (runStatus !== "completed") {
-      throw new Error(`Run did not complete. Status: ${runStatus}`);
+      // Fetch the run again to get detailed error info
+      const finalRunResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
+      });
+      const finalRunData = await finalRunResponse.json();
+      const errorDetail = finalRunData.last_error ? JSON.stringify(finalRunData.last_error) : "No error details available";
+      console.error("Final run data:", JSON.stringify(finalRunData, null, 2));
+      throw new Error(`Run did not complete. Status: ${runStatus}. Error: ${errorDetail}`);
     }
 
     // Get messages
