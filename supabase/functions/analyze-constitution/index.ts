@@ -65,8 +65,8 @@ serve(async (req) => {
     if (!question || typeof question !== "string") {
       throw new Error("Invalid question parameter");
     }
-    if (question.length > 2000) {
-      throw new Error("Question too long (max 2000 characters)");
+    if (question.length > 15000) {
+      throw new Error("Question too long (max 15000 characters)");
     }
     if (!["general", "validate"].includes(type)) {
       throw new Error("Invalid type parameter");
