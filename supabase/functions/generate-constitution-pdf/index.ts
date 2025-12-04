@@ -7,6 +7,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// HTML escape function to prevent XSS attacks
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -120,9 +131,9 @@ serve(async (req) => {
         htmlContent += `
           <div class="amendment">
             <div class="amendment-header">Amendment ${index + 1}</div>
-            <div class="amendment-date">Approved: ${approvedDate}</div>
-            <div class="amendment-title">${amendment.title}</div>
-            <div class="amendment-text">${amendment.amendment_text}</div>
+            <div class="amendment-date">Approved: ${escapeHtml(approvedDate)}</div>
+            <div class="amendment-title">${escapeHtml(amendment.title)}</div>
+            <div class="amendment-text">${escapeHtml(amendment.amendment_text)}</div>
           </div>
         `;
       });
