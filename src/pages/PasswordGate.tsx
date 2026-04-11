@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const STORAGE_KEY = "musg-access-granted";
-const CORRECT = import.meta.env.VITE_SITE_PASSWORD as string;
+const CORRECT = (import.meta.env.VITE_SITE_PASSWORD as string ?? "").trim();
 
 export function usePasswordGate() {
   return localStorage.getItem(STORAGE_KEY) === "1";
