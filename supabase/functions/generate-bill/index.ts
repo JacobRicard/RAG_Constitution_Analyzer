@@ -67,15 +67,6 @@ serve(async (req) => {
   }
 
   try {
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const { mode, input, clarification, constitutionText, conversationId } = await req.json();
 
     // Input validation
@@ -89,20 +80,19 @@ serve(async (req) => {
     if (constitutionText && constitutionText.length > 200_000) throw new Error("constitutionText must be less than 200,000 characters");
     if (conversationId && typeof conversationId !== "string") throw new Error("conversationId must be a string");
 
-    // Get authenticated user
+    // Auth is optional — if a valid JWT is provided, load/persist conversation history
+    const authHeader = req.headers.get("Authorization");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let user: any = null;
+    if (authHeader) {
+      const jwt = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: { user: u } } = await supabase.auth.getUser(jwt);
+      user = u ?? null;
     }
 
-    // Load conversation history
+    // Load conversation history if authenticated
     let history: Array<{ role: string; content: string }> = [];
-    if (conversationId) {
+    if (user && conversationId) {
       const { data: rows } = await supabase
         .from("chat_messages")
         .select("role, content")
@@ -216,8 +206,8 @@ EXPLANATION:
       ? explanationMatch[1].trim()
       : "See bill text above for constitutional analysis.";
 
-    // Persist exchange so the next call in this session has context
-    if (conversationId) {
+    // Persist exchange so the next call in this session has context (only when authenticated)
+    if (user && conversationId) {
       // Store the plain user input (not the full prompt with constitution) to keep history lean
       const storedUserMessage =
         mode === "A"

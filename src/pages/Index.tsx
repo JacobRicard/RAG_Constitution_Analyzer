@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ConstitutionChat } from "@/components/ConstitutionChat";
 import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
@@ -8,80 +8,28 @@ import { BillWriter } from "@/components/BillWriter";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen, MessageSquare, FileCheck, AlertTriangle,
-  Settings, LogOut, FileText, UserCheck, Scale, Menu, X,
+  Settings, FileText, Scale, Menu,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Nav definition ───────────────────────────────────────────────────────────
 type Tab = "chat" | "validator" | "analyzer" | "billWriter" | "viewer" | "manager";
 
-const NAV: { id: Tab; label: string; description: string; icon: React.ElementType; adminOnly?: boolean }[] = [
+const NAV: { id: Tab; label: string; description: string; icon: React.ElementType }[] = [
   { id: "chat",       label: "AI Assistant",          description: "Ask anything about the constitution",  icon: MessageSquare },
   { id: "validator",  label: "Amendment Validator",   description: "Check citations and compliance",        icon: FileCheck },
   { id: "analyzer",   label: "Weakness Analyzer",     description: "Find vague or unenforceable language",  icon: AlertTriangle },
   { id: "billWriter", label: "Bill Writer",            description: "Draft formal legislative bills",        icon: FileText },
   { id: "viewer",     label: "Read Constitution",      description: "Download the full document",            icon: BookOpen },
-  { id: "manager",    label: "Admin",                  description: "Manage amendments and users",           icon: Settings, adminOnly: true },
+  { id: "manager",    label: "Admin",                  description: "Manage amendments and users",           icon: Settings },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate('/auth'); return; }
-
-      setUser(session.user);
-
-      const { data: profile } = await supabase
-        .from('profiles').select('approved').eq('id', session.user.id).single();
-      if (!profile?.approved) { navigate('/pending-approval'); return; }
-
-      const { data: role } = await supabase
-        .from('user_roles').select('role').eq('user_id', session.user.id).single();
-      setIsAdmin(role?.role === 'admin');
-      setChecking(false);
-    };
-
-    check();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) check(); else navigate('/auth');
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
-
-  if (checking) {
-    return (
-      <div className="h-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-elegant">
-            <Scale className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
-
-  const visibleNav = NAV.filter(n => !n.adminOnly || isAdmin);
   const active = NAV.find(n => n.id === activeTab)!;
-  const initials = user?.email?.[0]?.toUpperCase() ?? "?";
 
   const handleNav = (id: Tab) => {
     setActiveTab(id);
@@ -106,7 +54,7 @@ const Index = () => {
 
       {/* Nav items */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {visibleNav.map((item) => {
+        {NAV.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
@@ -133,33 +81,11 @@ const Index = () => {
         })}
       </nav>
 
-      {/* User footer */}
-      <div className="p-3 border-t border-white/10">
-        {isAdmin && (
-          <button
-            onClick={() => navigate('/user-approval')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/50 hover:text-white/80 hover:bg-white/8 transition-all text-xs mb-1"
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            User Approval
-          </button>
-        )}
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-7 h-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-xs font-bold text-gold flex-shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-white/70 truncate">{user?.email}</p>
-            <p className="text-[10px] text-white/35">{isAdmin ? "Administrator" : "Member"}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            title="Sign out"
-            className="text-white/35 hover:text-white/70 transition-colors p-1"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
-        </div>
+      {/* Footer */}
+      <div className="p-4 border-t border-white/10">
+        <p className="text-[10px] text-white/30 text-center leading-relaxed">
+          Marquette University Student Government
+        </p>
       </div>
     </div>
   );

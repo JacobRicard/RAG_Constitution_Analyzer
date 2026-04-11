@@ -63,9 +63,6 @@ export const AmendmentValidator = () => {
     setIsProcessing(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
       const formData = new FormData();
       formData.append('file', file);
 
@@ -73,9 +70,6 @@ export const AmendmentValidator = () => {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-amendment`,
         {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
           body: formData,
         }
       );

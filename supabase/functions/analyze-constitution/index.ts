@@ -57,15 +57,6 @@ serve(async (req) => {
   }
 
   try {
-    // Auth
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Rate limiting
     const clientIP = req.headers.get("x-forwarded-for") ?? "unknown";
     if (!checkRateLimit(clientIP)) {
@@ -91,20 +82,19 @@ serve(async (req) => {
       throw new Error("conversationId must be a string");
     }
 
-    // Get user from JWT
+    // Auth is optional — if a valid JWT is provided, load/persist conversation history
+    const authHeader = req.headers.get("authorization");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let user: any = null;
+    if (authHeader) {
+      const jwt = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: { user: u } } = await supabase.auth.getUser(jwt);
+      user = u ?? null;
     }
 
-    // Load conversation history if a conversationId was provided
+    // Load conversation history if authenticated and a conversationId was provided
     let history: Array<{ role: string; content: string }> = [];
-    if (conversationId) {
+    if (user && conversationId) {
       const { data: rows } = await supabase
         .from("chat_messages")
         .select("role, content")
@@ -202,8 +192,8 @@ ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${const
       throw new Error("Empty response from AI");
     }
 
-    // Persist this exchange to the database if a conversationId was provided
-    if (conversationId) {
+    // Persist this exchange to the database if authenticated and a conversationId was provided
+    if (user && conversationId) {
       await supabase.from("chat_messages").insert([
         { user_id: user.id, conversation_id: conversationId, role: "user", content: question },
         { user_id: user.id, conversation_id: conversationId, role: "assistant", content: answer },
