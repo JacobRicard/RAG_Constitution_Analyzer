@@ -12,6 +12,7 @@ const STORAGE_KEY = "musg-chat-conv-id";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
 }
 
 const SUGGESTIONS = [
@@ -68,7 +69,11 @@ export const ConstitutionChat = () => {
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.answer ?? "I'm sorry, I couldn't generate a response." },
+        {
+          role: "assistant",
+          content: data.answer ?? "I'm sorry, I couldn't generate a response.",
+          confidence: data.confidence ?? null,
+        },
       ]);
     } catch {
       toast({
@@ -134,6 +139,24 @@ export const ConstitutionChat = () => {
               )}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === "assistant" && msg.confidence && (
+                <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-1.5">
+                  <span className={cn(
+                    "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                    msg.confidence === "HIGH"   && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                    msg.confidence === "MEDIUM" && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                    msg.confidence === "LOW"    && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                  )}>
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      msg.confidence === "HIGH"   && "bg-emerald-500",
+                      msg.confidence === "MEDIUM" && "bg-amber-500",
+                      msg.confidence === "LOW"    && "bg-red-500",
+                    )} />
+                    {msg.confidence} CONFIDENCE
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         ))}

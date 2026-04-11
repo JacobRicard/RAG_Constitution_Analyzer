@@ -15,7 +15,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // How many past messages to include for context (user+assistant pairs)
-const MAX_HISTORY_MESSAGES = 20;
+const MAX_HISTORY_MESSAGES = 6;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,7 +154,14 @@ ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${const
 
 When citing the documents, use natural readable references such as "Article III of the Constitution" or "Section 4.4 of the Election Rules". Never use raw file-reference bracket syntax.
 
-Keep answers clear, well-organized, and accurate. If you're unsure, say so.${amendmentContext}
+Keep answers clear, well-organized, and accurate. If you're unsure, say so.
+
+At the very end of every response, on its own line, output exactly one of:
+CONFIDENCE: HIGH
+CONFIDENCE: MEDIUM
+CONFIDENCE: LOW
+
+Use HIGH when the answer is directly and explicitly stated in the provided documents. Use MEDIUM when it requires reasonable inference from the documents. Use LOW when the documents are silent or ambiguous on the topic.${amendmentContext}
 
 ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${constitutionSection}` : ""}`;
 
@@ -165,8 +172,10 @@ ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${const
       { role: "user", content: question },
     ];
 
-    // Call LM Studio (OpenAI-compatible chat completions)
-    const aiResponse = await fetch(`${LM_STUDIO_BASE_URL}/v1/chat/completions`, {
+    // Call AI provider (OpenAI-compatible chat completions)
+    // LM_STUDIO_BASE_URL should include the full path up to (but not including) /chat/completions
+    // e.g. http://127.0.0.1:1234/v1  |  https://api.groq.com/openai/v1  |  https://generativelanguage.googleapis.com/v1beta/openai
+    const aiResponse = await fetch(`${LM_STUDIO_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -186,22 +195,29 @@ ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${const
     }
 
     const aiData = await aiResponse.json();
-    const answer = aiData.choices?.[0]?.message?.content?.trim() ?? "";
+    const raw = aiData.choices?.[0]?.message?.content?.trim() ?? "";
 
-    if (!answer) {
+    if (!raw) {
       throw new Error("Empty response from AI");
     }
+
+    // Parse confidence tag from the end of the response
+    const confidenceMatch = raw.match(/\nCONFIDENCE:\s*(HIGH|MEDIUM|LOW)\s*$/i);
+    const confidence = confidenceMatch ? confidenceMatch[1].toUpperCase() : null;
+    const answer = confidenceMatch
+      ? raw.slice(0, confidenceMatch.index).trim()
+      : raw;
 
     // Persist this exchange to the database if authenticated and a conversationId was provided
     if (user && conversationId) {
       await supabase.from("chat_messages").insert([
         { user_id: user.id, conversation_id: conversationId, role: "user", content: question },
-        { user_id: user.id, conversation_id: conversationId, role: "assistant", content: answer },
+        { user_id: user.id, conversation_id: conversationId, role: "assistant", content: raw },
       ]);
     }
 
     return new Response(
-      JSON.stringify({ answer }),
+      JSON.stringify({ answer, confidence }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
