@@ -1,13 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.81.0";
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+const LM_STUDIO_BASE_URL =
+  (Deno.env.get("LM_STUDIO_BASE_URL") ?? "http://127.0.0.1:1234").replace(/\/$/, "");
+
+// Optional API key — required for cloud providers (Groq, OpenRouter, etc.)
+const AI_API_KEY = Deno.env.get("AI_API_KEY");
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// How many past exchanges (user+assistant pairs) to include
+const MAX_HISTORY_MESSAGES = 10;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const CONSTITUTION_TEXT = `MARQUETTE UNIVERSITY STUDENT GOVERNMENT CONSTITUTION
-[Full constitution text would be included here - abbreviated for space]`;
-
+// ─── Current bill template (2025-2026) ───────────────────────────────────────
 const BILL_TEMPLATE = `Alumni Memorial Union, 133
 P.O. Box 1881
 Milwaukee, WI 53201-1881
@@ -39,186 +51,195 @@ Furthermore,
 
 Furthermore,
 
-Action of MUSG Legislative Vice President Reagen
+Action of MUSG Legislative Vice President Burdin
 _________________________________ Date: ___________
 
-Action of MUSG President Browne
+Action of MUSG President Ricard
 _________________________________ Date: ___________
 
 Action of Student Affairs Designee
 _________________________________ Date: ___________`;
 
+// ─── Main handler ─────────────────────────────────────────────────────────────
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization');
+    // Auth
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { mode, input, clarification, constitutionText } = await req.json();
-    
+    const { mode, input, clarification, constitutionText, conversationId } = await req.json();
+
     // Input validation
-    if (!mode || !input) {
-      throw new Error("Mode and input are required");
+    if (!mode || !input) throw new Error("mode and input are required");
+    if (!["A", "B"].includes(mode)) throw new Error("Invalid mode. Must be 'A' or 'B'");
+    if (typeof input !== "string") throw new Error("input must be a string");
+    if (input.length > 50_000) throw new Error("input must be less than 50,000 characters");
+    if (clarification && typeof clarification !== "string") throw new Error("clarification must be a string");
+    if (clarification && clarification.length > 10_000) throw new Error("clarification must be less than 10,000 characters");
+    if (constitutionText && typeof constitutionText !== "string") throw new Error("constitutionText must be a string");
+    if (constitutionText && constitutionText.length > 200_000) throw new Error("constitutionText must be less than 200,000 characters");
+    if (conversationId && typeof conversationId !== "string") throw new Error("conversationId must be a string");
+
+    // Get authenticated user
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    if (!['A', 'B'].includes(mode)) {
-      throw new Error("Invalid mode. Must be 'A' or 'B'");
+    // Load conversation history
+    let history: Array<{ role: string; content: string }> = [];
+    if (conversationId) {
+      const { data: rows } = await supabase
+        .from("chat_messages")
+        .select("role, content")
+        .eq("user_id", user.id)
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .limit(MAX_HISTORY_MESSAGES);
+
+      if (rows) {
+        history = rows.map((r: any) => ({ role: r.role, content: r.content }));
+      }
     }
 
-    if (typeof input !== 'string') {
-      throw new Error("Input must be a string");
-    }
+    const constitution = constitutionText
+      ? constitutionText.substring(0, 100_000)
+      : "(Constitution not provided — use general MUSG knowledge)";
 
-    const maxInputLength = 50000; // 50KB
-    if (input.length > maxInputLength) {
-      throw new Error(`Input must be less than ${maxInputLength} characters`);
-    }
-
-    if (clarification && typeof clarification !== 'string') {
-      throw new Error("Clarification must be a string");
-    }
-
-    if (clarification && clarification.length > 10000) {
-      throw new Error("Clarification must be less than 10,000 characters");
-    }
-
-    if (constitutionText && typeof constitutionText !== 'string') {
-      throw new Error("Constitution text must be a string");
-    }
-
-    if (constitutionText && constitutionText.length > 200000) {
-      throw new Error("Constitution text must be less than 200,000 characters");
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    let systemPrompt = "";
-    let userPrompt = "";
+    // System prompt always carries the constitution so history messages stay clean
+    let systemPrompt: string;
+    let userPrompt: string;
 
     if (mode === "A") {
-      systemPrompt = `You are a legislative drafting assistant for Marquette University Student Government (MUSG). You draft complete, formally styled bills using the MUSG constitution and bill template.
+      systemPrompt = `You are a legislative drafting assistant for Marquette University Student Government (MUSG). Draft complete, formally-styled bills that follow the provided template exactly. Write in neutral, formal legislative style with concrete thresholds over vague standards. Ensure constitutional compliance and fill every template field.
 
-Your task:
-1. Understand the policy goal provided
-2. Infer necessary mechanisms (definitions, authorizations, procedures, enforcement, funding)
-3. Draft a complete bill following the template structure
-4. Ensure constitutional compliance
-5. After the bill text, provide a brief explanation of constitutional support
+If prior bills exist in the conversation, the user may be asking you to refine them — incorporate their feedback precisely.
 
-Write in neutral, formal legislative style. Avoid vague standards when concrete thresholds can be specified. Prefer options that align with the constitution while advancing the core goal.`;
+MUSG CONSTITUTION:
+${constitution}`;
 
-      userPrompt = `Constitutional Text:
-${constitutionText || CONSTITUTION_TEXT}
-
-Bill Template:
+      userPrompt = `Bill Template:
 ${BILL_TEMPLATE}
 
 Policy Goal:
 ${input}
 
-Please draft a complete bill following the template structure and explain which constitutional provisions support it.
+Fill in all template fields (bill type, title, authors, sponsors, committee, dates, whereas clauses, resolutions, signature blocks). Use placeholder values for author/sponsor names and dates. Respond using this exact format:
 
-Format your response as:
 TITLE: [Short descriptive title]
 BILL_TEXT:
-[Complete bill text here]
+[Complete bill text matching the template]
 
 EXPLANATION:
-[Constitutional analysis here]`;
+[Which constitutional provisions authorize this bill]`;
 
-    } else if (mode === "B") {
-      systemPrompt = `You are a legislative drafting assistant for Marquette University Student Government (MUSG). You fix constitutional weaknesses by drafting precise bill language.
-
-Your task:
-1. Analyze each weakness provided
-2. Understand the constitutional problem (vague, overbroad, unenforceable, etc.)
-3. Draft bill language (amendments, repeals, or additions) that cures the weaknesses
-4. Preserve lawful policy goals while fixing constitutional issues
-5. Integrate all fixes into one coherent bill following the template
-6. Explain how each weakness has been addressed
-
-Write in neutral, formal legislative style with precise, enforceable language.`;
-
+    } else {
       const clarificationText = clarification ? `\n\nDesired Clarification:\n${clarification}` : "";
 
-      userPrompt = `Constitutional Text:
-${constitutionText || CONSTITUTION_TEXT}
+      systemPrompt = `You are a legislative drafting assistant for Marquette University Student Government (MUSG). Fix constitutional weaknesses by drafting precise, enforceable bill language that follows the provided template exactly. Preserve lawful policy goals while curing every identified defect. Write in neutral, formal legislative style.
 
-Bill Template:
+If prior bills exist in the conversation, the user may be asking you to refine them — incorporate their feedback precisely.
+
+MUSG CONSTITUTION:
+${constitution}`;
+
+      userPrompt = `Bill Template:
 ${BILL_TEMPLATE}
 
 Constitutional Weaknesses to Fix:
 ${input}${clarificationText}
 
-Please draft a bill that fixes these weaknesses and explain how each issue has been addressed.
+Draft a single bill that addresses all weaknesses. Fill in all template fields. Respond using this exact format:
 
-Format your response as:
 TITLE: [Short descriptive title]
 BILL_TEXT:
-[Complete bill text here]
+[Complete bill text matching the template]
 
 EXPLANATION:
-[Analysis of how each weakness was fixed]`;
+[How each weakness was addressed]`;
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Build messages: system + history + current user message
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...history,
+      { role: "user", content: userPrompt },
+    ];
+
+    // Call LM Studio
+    const aiResponse = await fetch(`${LM_STUDIO_BASE_URL}/v1/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
+        ...(AI_API_KEY ? { "Authorization": `Bearer ${AI_API_KEY}` } : {}),
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
+        model: Deno.env.get("LM_STUDIO_MODEL") ?? "local-model",
+        messages,
+        temperature: 0.3,
+        max_tokens: 6144,
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI gateway error: ${response.status}`);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      throw new Error(`LM Studio error ${aiResponse.status}: ${errText.substring(0, 200)}`);
     }
 
-    const data = await response.json();
-    const fullResponse = data.choices?.[0]?.message?.content || "";
+    const aiData = await aiResponse.json();
+    const fullResponse = aiData.choices?.[0]?.message?.content?.trim() ?? "";
 
-    // Parse the response
+    if (!fullResponse) throw new Error("Empty response from AI");
+
+    // Parse structured response
     const titleMatch = fullResponse.match(/TITLE:\s*(.*?)(?:\n|$)/i);
     const billMatch = fullResponse.match(/BILL_TEXT:\s*([\s\S]*?)(?=EXPLANATION:|$)/i);
     const explanationMatch = fullResponse.match(/EXPLANATION:\s*([\s\S]*?)$/i);
 
     const title = titleMatch ? titleMatch[1].trim() : "MUSG Legislative Draft";
     const billText = billMatch ? billMatch[1].trim() : fullResponse;
-    const explanation = explanationMatch ? explanationMatch[1].trim() : "See bill text above for constitutional analysis.";
+    const explanation = explanationMatch
+      ? explanationMatch[1].trim()
+      : "See bill text above for constitutional analysis.";
+
+    // Persist exchange so the next call in this session has context
+    if (conversationId) {
+      // Store the plain user input (not the full prompt with constitution) to keep history lean
+      const storedUserMessage =
+        mode === "A"
+          ? `Policy Goal: ${input}`
+          : `Weaknesses: ${input}${clarification ? `\n\nClarification: ${clarification}` : ""}`;
+
+      await supabase.from("chat_messages").insert([
+        { user_id: user.id, conversation_id: conversationId, role: "user", content: storedUserMessage },
+        { user_id: user.id, conversation_id: conversationId, role: "assistant", content: fullResponse },
+      ]);
+    }
 
     return new Response(
       JSON.stringify({ title, billText, explanation }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: any) {
-    // Error in generate-bill function
+    console.error("Error in generate-bill:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to generate bill" }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({ error: error.message ?? "Failed to generate bill" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

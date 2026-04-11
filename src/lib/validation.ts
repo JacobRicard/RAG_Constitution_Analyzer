@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+export const passwordSchema = z.string()
+  .min(8, 'At least 8 characters')
+  .regex(/[A-Z]/, 'At least one uppercase letter')
+  .regex(/[0-9]/, 'At least one number')
+  .regex(/[^a-zA-Z0-9]/, 'At least one special character (e.g. !@#$%)');
+
+export function getPasswordErrors(password: string): string[] {
+  const result = passwordSchema.safeParse(password);
+  if (result.success) return [];
+  return result.error.errors.map((e) => e.message);
+}
+
 export const amendmentSchema = z.object({
   title: z.string()
     .trim()

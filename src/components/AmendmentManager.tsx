@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { amendmentSchema } from "@/lib/validation";
-import { SetupVectorStore } from "@/components/SetupVectorStore";
 import {
   Dialog,
   DialogContent,
@@ -310,11 +309,6 @@ export const AmendmentManager = () => {
               </Button>
             </div>
           </div>
-
-          <Separator />
-
-          {/* RAG Vector Store Setup */}
-          <SetupVectorStore />
 
           <Separator />
 

@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, FileText, AlertTriangle } from "lucide-react";
+import { Loader2, FileText, AlertTriangle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,13 @@ interface BillWriterProps {
 }
 
 export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
+  const [conversationId, setConversationId] = useState<string>(() => {
+    return localStorage.getItem("musg-bill-conv-id") ?? crypto.randomUUID();
+  });
+
+  useEffect(() => {
+    localStorage.setItem("musg-bill-conv-id", conversationId);
+  }, [conversationId]);
   const [mode, setMode] = useState<"A" | "B">(initialWeaknesses ? "B" : "A");
   const [policyGoal, setPolicyGoal] = useState("");
   const [weaknesses, setWeaknesses] = useState(initialWeaknesses || "");
@@ -25,6 +32,17 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const { toast } = useToast();
+
+  const startNewSession = () => {
+    setConversationId(crypto.randomUUID());
+    setBillText("");
+    setBillTitle("");
+    setExplanation("");
+    setPolicyGoal("");
+    setWeaknesses(initialWeaknesses || "");
+    setClarification("");
+    toast({ title: "New Session", description: "Started a fresh bill drafting session." });
+  };
 
   const generateBill = async () => {
     const input = mode === "A" ? policyGoal : weaknesses;
@@ -46,11 +64,12 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-bill', {
-        body: { 
+        body: {
           mode,
           input,
           clarification: mode === "B" ? clarification : undefined,
           constitutionText,
+          conversationId,
         }
       });
 
@@ -129,13 +148,28 @@ export const BillWriter = ({ initialWeaknesses }: BillWriterProps) => {
   return (
     <Card className="border-border bg-card shadow-elegant">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          <FileText className="h-6 w-6 text-primary" />
-          Bill Writer
-        </CardTitle>
-        <CardDescription>
-          AI-powered legislative drafting assistant that creates formal bills using the MUSG template and constitution
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <FileText className="h-6 w-6 text-primary" />
+              Bill Writer
+            </CardTitle>
+            <CardDescription className="mt-1">
+              AI-powered legislative drafting assistant that creates formal bills using the MUSG template and constitution
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={startNewSession}
+            disabled={isLoading}
+            title="Start a new drafting session (clears conversation history)"
+            className="shrink-0"
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            New Session
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={mode} onValueChange={(v) => setMode(v as "A" | "B")}>

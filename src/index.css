@@ -2,14 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
     /* Marquette Navy Blue and Gold Theme */
-    --background: 0 0% 98%;
+    --background: 210 20% 97%;
     --foreground: 210 40% 10%;
 
     --card: 0 0% 100%;
@@ -18,15 +14,13 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 210 40% 10%;
 
-    /* Marquette Navy Blue Primary */
     --primary: 210 100% 20%;
     --primary-foreground: 0 0% 100%;
 
-    /* Gold Accent */
     --secondary: 45 100% 51%;
     --secondary-foreground: 210 40% 10%;
 
-    --muted: 210 20% 95%;
+    --muted: 210 20% 93%;
     --muted-foreground: 210 20% 45%;
 
     --accent: 45 100% 51%;
@@ -35,28 +29,24 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
     --ring: 210 100% 20%;
 
     --radius: 0.75rem;
 
-    /* Custom MUSG Colors */
     --navy: 210 100% 20%;
     --navy-light: 210 80% 30%;
-    --navy-dark: 210 100% 15%;
+    --navy-dark: 210 100% 14%;
     --gold: 45 100% 51%;
     --gold-light: 45 100% 65%;
-    
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(210 100% 20%) 0%, hsl(210 80% 30%) 100%);
+
+    --gradient-hero: linear-gradient(135deg, hsl(210 100% 20%) 0%, hsl(210 80% 28%) 100%);
     --gradient-accent: linear-gradient(90deg, hsl(45 100% 51%) 0%, hsl(45 100% 65%) 100%);
-    
-    /* Shadows */
+
     --shadow-elegant: 0 10px 40px -10px hsl(210 100% 20% / 0.2);
     --shadow-glow: 0 0 60px hsl(45 100% 51% / 0.15);
-    
-    /* Transitions */
+
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
@@ -70,13 +60,13 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 210 40% 10%;
+    --background: 210 40% 8%;
     --foreground: 0 0% 98%;
 
-    --card: 210 35% 12%;
+    --card: 210 35% 11%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 210 35% 12%;
+    --popover: 210 35% 11%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 45 100% 51%;
@@ -85,8 +75,8 @@ All colors MUST be HSL.
     --secondary: 210 80% 30%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 30% 20%;
-    --muted-foreground: 210 20% 70%;
+    --muted: 210 30% 18%;
+    --muted-foreground: 210 20% 65%;
 
     --accent: 45 100% 51%;
     --accent-foreground: 210 40% 10%;
@@ -94,10 +84,10 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 30% 25%;
-    --input: 210 30% 25%;
+    --border: 210 30% 22%;
+    --input: 210 30% 22%;
     --ring: 45 100% 51%;
-    
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -110,11 +100,60 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Better text selection */
+  ::selection {
+    background: hsl(var(--primary) / 0.15);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out both;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.25s ease-out both;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.81.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,14 +58,12 @@ serve(async (req) => {
     const { data: { user: callingUser }, error: userError } = await userClient.auth.getUser();
     
     if (userError || !callingUser) {
-      console.error('Failed to get calling user:', userError);
+      console.error('Failed to get calling user');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Calling user:', callingUser.id);
 
     // Create admin client to check role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -79,14 +77,12 @@ serve(async (req) => {
       .single();
 
     if (roleError || !roleData) {
-      console.error('User is not an admin:', callingUser.id, roleError);
+      console.error('Delete-user: caller lacks admin role');
       return new Response(
         JSON.stringify({ error: 'Forbidden: Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Admin verified, deleting user:', userId);
 
     // Prevent self-deletion
     if (userId === callingUser.id) {
@@ -101,14 +97,12 @@ serve(async (req) => {
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
 
     if (deleteError) {
-      console.error('Failed to delete user:', deleteError);
+      console.error('Failed to delete user:', deleteError.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to delete user: ' + deleteError.message }),
+        JSON.stringify({ error: 'Failed to delete user' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('User deleted successfully:', userId);
 
     return new Response(
       JSON.stringify({ success: true, message: 'User deleted successfully' }),

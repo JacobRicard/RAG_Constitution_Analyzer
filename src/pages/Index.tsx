@@ -5,227 +5,229 @@ import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
 import { AmendmentManager } from "@/components/AmendmentManager";
 import { BillWriter } from "@/components/BillWriter";
-import { SetupVectorStore } from "@/components/SetupVectorStore";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, FileCheck, AlertTriangle, Settings, LogOut, LogIn, FileText, UserCheck } from "lucide-react";
+import {
+  BookOpen, MessageSquare, FileCheck, AlertTriangle,
+  Settings, LogOut, FileText, UserCheck, Scale, Menu, X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
+// ─── Nav definition ───────────────────────────────────────────────────────────
+type Tab = "chat" | "validator" | "analyzer" | "billWriter" | "viewer" | "manager";
+
+const NAV: { id: Tab; label: string; description: string; icon: React.ElementType; adminOnly?: boolean }[] = [
+  { id: "chat",       label: "AI Assistant",          description: "Ask anything about the constitution",  icon: MessageSquare },
+  { id: "validator",  label: "Amendment Validator",   description: "Check citations and compliance",        icon: FileCheck },
+  { id: "analyzer",   label: "Weakness Analyzer",     description: "Find vague or unenforceable language",  icon: AlertTriangle },
+  { id: "billWriter", label: "Bill Writer",            description: "Draft formal legislative bills",        icon: FileText },
+  { id: "viewer",     label: "Read Constitution",      description: "Download the full document",            icon: BookOpen },
+  { id: "manager",    label: "Admin",                  description: "Manage amendments and users",           icon: Settings, adminOnly: true },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<"chat" | "viewer" | "validator" | "analyzer" | "manager" | "billWriter" | "setup">("chat");
+  const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isApproved, setIsApproved] = useState(false);
-  const [checkingApproval, setCheckingApproval] = useState(true);
+  const [checking, setChecking] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
-    const checkUserStatus = async () => {
+    const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate('/auth');
-        return;
-      }
+      if (!session) { navigate('/auth'); return; }
 
       setUser(session.user);
 
-      // Check if user is approved
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('approved')
-        .eq('id', session.user.id)
-        .single();
+        .from('profiles').select('approved').eq('id', session.user.id).single();
+      if (!profile?.approved) { navigate('/pending-approval'); return; }
 
-      if (!profile?.approved) {
-        navigate('/pending-approval');
-        return;
-      }
-
-      setIsApproved(true);
-
-      // Check if user is admin
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .single();
-
-      setIsAdmin(roleData?.role === 'admin');
-      setCheckingApproval(false);
+      const { data: role } = await supabase
+        .from('user_roles').select('role').eq('user_id', session.user.id).single();
+      setIsAdmin(role?.role === 'admin');
+      setChecking(false);
     };
 
-    checkUserStatus();
+    check();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        checkUserStatus();
-      } else {
-        navigate('/auth');
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) check(); else navigate('/auth');
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    toast({
-      title: "Signed out",
-      description: "You have been signed out successfully",
-    });
   };
 
-  const handleSignIn = () => {
-    navigate('/auth');
-  };
-
-  const handleUserApproval = () => {
-    navigate('/user-approval');
-  };
-
-  if (checkingApproval) {
+  if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-musg-navy" />
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-elegant">
+            <Scale className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <header className="bg-gradient-hero text-white py-16 px-6 shadow-elegant">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <BookOpen className="h-12 w-12 mr-4" />
-              <h1 className="text-4xl md:text-5xl font-bold">MUSG Constitution</h1>
-            </div>
-            <div className="flex gap-2">
-              {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleUserApproval}
-                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-                >
-                  <UserCheck className="h-4 w-4" />
-                  User Approval
-                </Button>
-              )}
-              {user ? (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSignOut}
-                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSignIn}
-                  className="gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Sign In
-                </Button>
-              )}
-            </div>
-          </div>
-          <p className="text-xl text-center text-white/90 max-w-3xl mx-auto">
-            AI-Powered Analysis of the Marquette University Student Government Constitution
-          </p>
-          <p className="text-center text-white/80 mt-2">
-            Last Amended: March 15, 2025
-          </p>
-        </div>
-      </header>
+  const visibleNav = NAV.filter(n => !n.adminOnly || isAdmin);
+  const active = NAV.find(n => n.id === activeTab)!;
+  const initials = user?.email?.[0]?.toUpperCase() ?? "?";
 
-      {/* Navigation Tabs */}
-      <nav className="border-b border-border bg-card">
-        <div className="container mx-auto max-w-6xl px-6">
-          <div className="flex gap-2 py-4 flex-wrap">
-            <Button
-              variant={activeTab === "chat" ? "default" : "ghost"}
-              onClick={() => setActiveTab("chat")}
-              className="flex items-center gap-2"
-            >
-              <MessageSquare className="h-4 w-4" />
-              AI Assistant
-            </Button>
-            <Button
-              variant={activeTab === "validator" ? "default" : "ghost"}
-              onClick={() => setActiveTab("validator")}
-              className="flex items-center gap-2"
-            >
-              <FileCheck className="h-4 w-4" />
-              Amendment Validator
-            </Button>
-            <Button
-              variant={activeTab === "analyzer" ? "default" : "ghost"}
-              onClick={() => setActiveTab("analyzer")}
-              className="flex items-center gap-2"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Weakness Analyzer
-            </Button>
-            <Button
-              variant={activeTab === "billWriter" ? "default" : "ghost"}
-              onClick={() => setActiveTab("billWriter")}
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Bill Writer
-            </Button>
-            <Button
-              variant={activeTab === "viewer" ? "default" : "ghost"}
-              onClick={() => setActiveTab("viewer")}
-              className="flex items-center gap-2"
-            >
-              <BookOpen className="h-4 w-4" />
-              Read Constitution
-            </Button>
-            <Button
-              variant={activeTab === "manager" ? "default" : "ghost"}
-              onClick={() => setActiveTab("manager")}
-              className="flex items-center gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              Manage
-            </Button>
+  const handleNav = (id: Tab) => {
+    setActiveTab(id);
+    setSidebarOpen(false);
+  };
+
+  // ── Sidebar inner ────────────────────────────────────────────────────────
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gold/20 border border-gold/30 flex items-center justify-center flex-shrink-0">
+            <Scale className="h-4 w-4 text-gold" />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm leading-tight">MUSG</p>
+            <p className="text-[11px] text-white/50 leading-tight">Constitution AI</p>
           </div>
         </div>
+      </div>
+
+      {/* Nav items */}
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {visibleNav.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleNav(item.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
+                isActive
+                  ? "bg-white/15 text-white"
+                  : "text-white/60 hover:bg-white/8 hover:text-white/90"
+              )}
+            >
+              <Icon className={cn("h-4 w-4 flex-shrink-0 transition-colors", isActive ? "text-gold" : "text-white/40 group-hover:text-white/70")} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-tight truncate">{item.label}</p>
+                <p className={cn("text-[11px] leading-tight truncate mt-0.5 transition-colors", isActive ? "text-white/60" : "text-white/30 group-hover:text-white/50")}>
+                  {item.description}
+                </p>
+              </div>
+              {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0" />}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Main Content */}
-      <main className="container mx-auto max-w-6xl px-6 py-8">
-        {activeTab === "chat" && <ConstitutionChat />}
-        {activeTab === "validator" && <AmendmentValidator />}
-        {activeTab === "analyzer" && <WeaknessAnalyzer />}
-        {activeTab === "billWriter" && <BillWriter />}
-        {activeTab === "viewer" && <ConstitutionViewer />}
-        {activeTab === "manager" && <AmendmentManager />}
-        {activeTab === "setup" && isAdmin && <SetupVectorStore />}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border mt-16 py-8 bg-muted/30">
-        <div className="container mx-auto max-w-6xl px-6 text-center text-muted-foreground">
-          <p className="mb-2">Marquette University Student Government</p>
-          <p className="text-sm">Alumni Memorial Union, Room 133 • PO Box 1881 • Milwaukee, WI 53201-1881</p>
-          <p className="text-sm mt-1">414-288-7416 • musg.mu.edu</p>
+      {/* User footer */}
+      <div className="p-3 border-t border-white/10">
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/user-approval')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/50 hover:text-white/80 hover:bg-white/8 transition-all text-xs mb-1"
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            User Approval
+          </button>
+        )}
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="w-7 h-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-xs font-bold text-gold flex-shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white/70 truncate">{user?.email}</p>
+            <p className="text-[10px] text-white/35">{isAdmin ? "Administrator" : "Member"}</p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            title="Sign out"
+            className="text-white/35 hover:text-white/70 transition-colors p-1"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </footer>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="h-full flex overflow-hidden bg-background">
+      {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
+      <aside className="hidden md:flex w-60 flex-shrink-0 bg-primary flex-col">
+        <SidebarContent />
+      </aside>
+
+      {/* ── Mobile sidebar overlay ──────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-primary flex flex-col z-50">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
+      {/* ── Main panel ──────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+        {/* Top bar */}
+        <header className="h-14 flex items-center gap-3 px-4 md:px-6 border-b border-border bg-card flex-shrink-0">
+          {/* Mobile menu toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-8 w-8"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="font-semibold text-foreground text-sm truncate">{active.label}</h2>
+            <span className="hidden sm:block text-muted-foreground text-sm">·</span>
+            <p className="hidden sm:block text-sm text-muted-foreground truncate">{active.description}</p>
+          </div>
+
+          {/* LM Studio status */}
+          <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="hidden sm:block">Local AI</span>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div key={activeTab} className="animate-fade-in h-full">
+            {activeTab === "chat"       && <div className="h-full"><ConstitutionChat /></div>}
+            {activeTab === "validator"  && <div className="p-6 max-w-4xl mx-auto"><AmendmentValidator /></div>}
+            {activeTab === "analyzer"   && <div className="p-6 max-w-4xl mx-auto"><WeaknessAnalyzer /></div>}
+            {activeTab === "billWriter" && <div className="p-6 max-w-4xl mx-auto"><BillWriter /></div>}
+            {activeTab === "viewer"     && <div className="p-6 max-w-4xl mx-auto"><ConstitutionViewer /></div>}
+            {activeTab === "manager"    && <div className="p-6 max-w-4xl mx-auto"><AmendmentManager /></div>}
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="hidden md:block border-t border-border py-2 px-6 bg-card flex-shrink-0">
+          <p className="text-[11px] text-muted-foreground text-center">
+            Marquette University Student Government · Alumni Memorial Union 133 · Milwaukee, WI 53201
+          </p>
+        </footer>
+      </div>
     </div>
   );
 };
