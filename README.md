@@ -52,18 +52,4 @@ Edge functions live in `supabase/functions/`. To deploy:
 supabase functions deploy
 ```
 
-Secrets (OpenAI API key, etc.) are set via:
 
-```sh
-supabase secrets set OPENAI_API_KEY=...
-```
-
-## Deployment
-
-The app is deployed to Vercel. Push to `main` triggers a production deploy automatically.
-
-## Security
-
-- `.env` is in `.gitignore` — **do not remove this**.
-- If credentials are ever accidentally committed, rotate them immediately in the Supabase dashboard and regenerate your OpenAI API key.
-- The site password gate is a lightweight access control layer; do not store sensitive data in frontend code.
