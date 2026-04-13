@@ -19,14 +19,6 @@ cd musegov-insight
 npm install
 ```
 
-### 2. Configure environment variables
-
-**Never commit `.env` to git.** Copy the example file and fill in your values:
-
-```sh
-cp .env.example .env
-```
-
 Required variables:
 
 | Variable | Description |
