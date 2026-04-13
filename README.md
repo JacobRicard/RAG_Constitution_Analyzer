@@ -1,73 +1,69 @@
-# Welcome to your Lovable project
+# musegov-insight
 
-## Project info
+AI-powered governance tools for the Marquette University Student Government (MUSG). Includes bill drafting, amendment management, constitution analysis, and weakness detection — all backed by Supabase and OpenAI.
 
-**URL**: https://lovable.dev/projects/5bd8ad55-598f-487d-adc8-d9c47802c0b5
+## Tech stack
 
-## How can I edit this code?
+- React + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Supabase (database + edge functions)
+- OpenAI gpt-4o-mini
 
-There are several ways of editing your application.
+## Local development
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/5bd8ad55-598f-487d-adc8-d9c47802c0b5) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### 1. Clone and install
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone https://github.com/JacobRicard/musegov-insight.git
+cd musegov-insight
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 2. Configure environment variables
 
-# Step 3: Install the necessary dependencies.
-npm i
+**Never commit `.env` to git.** Copy the example file and fill in your values:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```sh
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon/public key |
+| `VITE_SUPABASE_PROJECT_ID` | Supabase project ID |
+| `VITE_SITE_PASSWORD` | Password gate for the app |
+
+Get these from the [Supabase dashboard](https://app.supabase.com) under **Project Settings → API**.
+
+### 3. Run the dev server
+
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Supabase edge functions
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Edge functions live in `supabase/functions/`. To deploy:
 
-**Use GitHub Codespaces**
+```sh
+supabase functions deploy
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Secrets (OpenAI API key, etc.) are set via:
 
-## What technologies are used for this project?
+```sh
+supabase secrets set OPENAI_API_KEY=...
+```
 
-This project is built with:
+## Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The app is deployed to Vercel. Push to `main` triggers a production deploy automatically.
 
-## How can I deploy this project?
+## Security
 
-Simply open [Lovable](https://lovable.dev/projects/5bd8ad55-598f-487d-adc8-d9c47802c0b5) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `.env` is in `.gitignore` — **do not remove this**.
+- If credentials are ever accidentally committed, rotate them immediately in the Supabase dashboard and regenerate your OpenAI API key.
+- The site password gate is a lightweight access control layer; do not store sensitive data in frontend code.
