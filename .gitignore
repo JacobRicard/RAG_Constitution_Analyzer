@@ -33,6 +33,9 @@ dist-ssr
 desktop.ini
 Thumbs.db
 
+# Bun (using npm instead)
+bun.lockb
+
 # Internal AI tooling / project notes
 .claude/
 .wolf/
