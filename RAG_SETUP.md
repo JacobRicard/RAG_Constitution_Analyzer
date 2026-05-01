@@ -1,4 +1,4 @@
-# AI & RAG Architecture
+# AI Architecture
 
 This document describes how the AI features work, what data sources they use, and how to configure them.
 
@@ -6,12 +6,7 @@ This document describes how the AI features work, what data sources they use, an
 
 ## How Constitution Q&A Works
 
-The AI Assistant, Amendment Validator, and Weakness Analyzer do **not** use a vector store for the constitution itself. Instead, the full text of all MUSG governing documents is bundled directly in `src/data/constitution.ts` and injected into the system prompt on every request (up to 150,000 characters).
-
-This approach was chosen over OpenAI's vector store (which was previously used and has since been decommissioned) because:
-- The combined governing documents fit comfortably within modern context windows
-- No external setup or API dependency is required
-- Citations are more reliable when the model sees the full document
+The AI Assistant, Amendment Validator, and Weakness Analyzer work by injecting the full text of all MUSG governing documents directly into the system prompt on every request (up to 150,000 characters). The model reads the complete document set and generates answers with specific article and section citations.
 
 ### Documents included
 
@@ -32,9 +27,9 @@ To update documents: replace the PDFs and regenerate `src/data/constitution.ts` 
 
 ---
 
-## Precedent Articles (pgvector RAG)
+## Precedent Articles
 
-The `scrape-articles` edge function scrapes MUSG-relevant news from Marquette Wire and `today.marquette.edu`, generates embeddings, and stores them in Supabase for semantic search.
+The `scrape-articles` edge function scrapes MUSG-relevant news from Marquette Wire and `today.marquette.edu`, generates vector embeddings, and stores them in Supabase for semantic similarity search.
 
 ### Pipeline
 
