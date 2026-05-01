@@ -28,3 +28,24 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# OS
+desktop.ini
+Thumbs.db
+
+# Internal AI tooling / project notes
+.claude/
+.wolf/
+CLAUDE.md
+context.md
+musegov-decisions.md
+musegov-features.md
+musegov-stack.md
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Python artifacts (not used in this project)
+src/musegov_insight/
+pyproject.toml
+tests/
