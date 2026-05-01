@@ -3,17 +3,16 @@ import { ConstitutionChat } from "@/components/ConstitutionChat";
 import { ConstitutionViewer } from "@/components/ConstitutionViewer";
 import { AmendmentValidator } from "@/components/AmendmentValidator";
 import { WeaknessAnalyzer } from "@/components/WeaknessAnalyzer";
-import { AmendmentManager } from "@/components/AmendmentManager";
 import { BillWriter } from "@/components/BillWriter";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen, MessageSquare, FileCheck, AlertTriangle,
-  Settings, FileText, Scale, Menu,
+  FileText, Scale, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Nav definition ───────────────────────────────────────────────────────────
-type Tab = "chat" | "validator" | "analyzer" | "billWriter" | "viewer" | "manager";
+type Tab = "chat" | "validator" | "analyzer" | "billWriter" | "viewer";
 
 const NAV: { id: Tab; label: string; description: string; icon: React.ElementType }[] = [
   { id: "chat",       label: "AI Assistant",          description: "Ask anything about the constitution",  icon: MessageSquare },
@@ -21,7 +20,6 @@ const NAV: { id: Tab; label: string; description: string; icon: React.ElementTyp
   { id: "analyzer",   label: "Weakness Analyzer",     description: "Find vague or unenforceable language",  icon: AlertTriangle },
   { id: "billWriter", label: "Bill Writer",            description: "Draft formal legislative bills",        icon: FileText },
   { id: "viewer",     label: "Read Constitution",      description: "Download the full document",            icon: BookOpen },
-  { id: "manager",    label: "Admin",                  description: "Manage amendments and users",           icon: Settings },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -143,7 +141,6 @@ const Index = () => {
             {activeTab === "analyzer"   && <div className="p-6 max-w-4xl mx-auto"><WeaknessAnalyzer /></div>}
             {activeTab === "billWriter" && <div className="p-6 max-w-4xl mx-auto"><BillWriter /></div>}
             {activeTab === "viewer"     && <div className="p-6 max-w-4xl mx-auto"><ConstitutionViewer /></div>}
-            {activeTab === "manager"    && <div className="p-6 max-w-4xl mx-auto"><AmendmentManager /></div>}
           </div>
         </main>
 
