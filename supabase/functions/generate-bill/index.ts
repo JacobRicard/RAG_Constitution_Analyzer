@@ -19,6 +19,49 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ─── Per-IP rate limiting ─────────────────────────────────────────────────────
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60_000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimiter) {
+    if (now > val.resetTime) rateLimiter.delete(key);
+  }
+}, 60_000);
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimiter.get(ip);
+  if (entry) {
+    if (now < entry.resetTime) {
+      if (entry.count >= RATE_LIMIT) return false;
+      entry.count++;
+    } else {
+      rateLimiter.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
+    }
+  } else {
+    rateLimiter.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
+  }
+  return true;
+}
+
+// ─── Global token budget ──────────────────────────────────────────────────────
+async function isTokenBudgetExceeded(supabase: any): Promise<boolean> {
+  const { data } = await supabase
+    .from("ai_usage")
+    .select("total_tokens, token_limit")
+    .eq("id", 1)
+    .single();
+  if (!data) return false;
+  return data.total_tokens >= data.token_limit;
+}
+
+async function recordTokenUsage(supabase: any, tokens: number): Promise<void> {
+  await supabase.rpc("increment_ai_tokens", { tokens_used: tokens });
+}
+
 // ─── Current bill template (2025-2026) ───────────────────────────────────────
 const BILL_TEMPLATE = `Alumni Memorial Union, 133
 P.O. Box 1881
@@ -67,7 +110,25 @@ serve(async (req) => {
   }
 
   try {
+    // Per-IP rate limit
+    const clientIP = req.headers.get("x-forwarded-for") ?? "unknown";
+    if (!checkRateLimit(clientIP)) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { mode, input, clarification, constitutionText, conversationId } = await req.json();
+
+    // Global token budget check
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    if (await isTokenBudgetExceeded(supabase)) {
+      return new Response(
+        JSON.stringify({ error: "Service is temporarily unavailable. Please try again later." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Input validation
     if (!mode || !input) throw new Error("mode and input are required");
@@ -82,7 +143,6 @@ serve(async (req) => {
 
     // Auth is optional — if a valid JWT is provided, load/persist conversation history
     const authHeader = req.headers.get("Authorization");
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     let user: any = null;
     if (authHeader) {
       const jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -194,6 +254,10 @@ EXPLANATION:
     const fullResponse = aiData.choices?.[0]?.message?.content?.trim() ?? "";
 
     if (!fullResponse) throw new Error("Empty response from AI");
+
+    // Record token usage against global budget
+    const tokensUsed = aiData.usage?.total_tokens ?? 0;
+    if (tokensUsed > 0) await recordTokenUsage(supabase, tokensUsed);
 
     // Parse structured response
     const titleMatch = fullResponse.match(/TITLE:\s*(.*?)(?:\n|$)/i);

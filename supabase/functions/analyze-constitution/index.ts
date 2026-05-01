@@ -22,9 +22,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ─── Rate limiting (in-memory, per Deno isolate) ─────────────────────────────
+// ─── Per-IP rate limiting (in-memory, per Deno isolate) ──────────────────────
 const rateLimiter = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 30;
+const RATE_LIMIT = 10; // requests per window per IP
 const RATE_WINDOW_MS = 60_000;
 
 setInterval(() => {
@@ -50,6 +50,21 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+// ─── Global token budget ──────────────────────────────────────────────────────
+async function isTokenBudgetExceeded(supabase: any): Promise<boolean> {
+  const { data } = await supabase
+    .from("ai_usage")
+    .select("total_tokens, token_limit")
+    .eq("id", 1)
+    .single();
+  if (!data) return false; // fail open if table missing
+  return data.total_tokens >= data.token_limit;
+}
+
+async function recordTokenUsage(supabase: any, tokens: number): Promise<void> {
+  await supabase.rpc("increment_ai_tokens", { tokens_used: tokens });
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -57,7 +72,7 @@ serve(async (req) => {
   }
 
   try {
-    // Rate limiting
+    // Per-IP rate limit
     const clientIP = req.headers.get("x-forwarded-for") ?? "unknown";
     if (!checkRateLimit(clientIP)) {
       return new Response(
@@ -67,6 +82,15 @@ serve(async (req) => {
     }
 
     const { question, type = "general", conversationId, constitutionText } = await req.json();
+
+    // Global token budget check
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    if (await isTokenBudgetExceeded(supabase)) {
+      return new Response(
+        JSON.stringify({ error: "Service is temporarily unavailable. Please try again later." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Input validation
     if (!question || typeof question !== "string") {
@@ -84,7 +108,6 @@ serve(async (req) => {
 
     // Auth is optional — if a valid JWT is provided, load/persist conversation history
     const authHeader = req.headers.get("authorization");
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     let user: any = null;
     if (authHeader) {
       const jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -200,6 +223,10 @@ ${constitutionSection ? `\n\nMUSG CONSTITUTION AND GOVERNING DOCUMENTS:\n${const
     if (!raw) {
       throw new Error("Empty response from AI");
     }
+
+    // Record token usage against global budget
+    const tokensUsed = aiData.usage?.total_tokens ?? 0;
+    if (tokensUsed > 0) await recordTokenUsage(supabase, tokensUsed);
 
     // Parse confidence tag from the end of the response
     const confidenceMatch = raw.match(/\nCONFIDENCE:\s*(HIGH|MEDIUM|LOW)\s*$/i);
