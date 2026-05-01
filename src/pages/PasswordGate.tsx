@@ -46,7 +46,7 @@ const PasswordGate = ({ onUnlock }: { onUnlock: () => void }) => {
             <Input
               id="gate-username"
               type="text"
-              placeholder="resumeDemo"
+              placeholder="Username"
               value={username}
               onChange={(e) => { setUsername(e.target.value); setError(false); }}
               onKeyDown={(e) => e.key === "Enter" && submit()}
