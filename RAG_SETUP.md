@@ -1,134 +1,95 @@
-# RAG-Based Constitution Analysis Setup
+# AI & RAG Architecture
 
-This project now uses **RAG (Retrieval-Augmented Generation)** with OpenAI's vector stores for superior constitution document analysis. This approach provides more accurate, context-aware responses by retrieving relevant sections from documents before generating answers.
+This document describes how the AI features work, what data sources they use, and how to configure them.
 
-## What is RAG?
+---
 
-RAG combines:
-1. **Retrieval**: Finding relevant document chunks using semantic search
-2. **Generation**: Using those chunks to generate accurate, contextual responses
+## How Constitution Q&A Works
 
-This eliminates the token limit issues and improves accuracy compared to passing entire documents in prompts.
+The AI Assistant, Amendment Validator, and Weakness Analyzer do **not** use a vector store for the constitution itself. Instead, the full text of all MUSG governing documents is bundled directly in `src/data/constitution.ts` and injected into the system prompt on every request (up to 150,000 characters).
 
-## Setup Instructions
+This approach was chosen over OpenAI's vector store (which was previously used and has since been decommissioned) because:
+- The combined governing documents fit comfortably within modern context windows
+- No external setup or API dependency is required
+- Citations are more reliable when the model sees the full document
 
-### 1. Run the Vector Store Setup (One-Time Setup)
+### Documents included
 
-As an admin, you need to set up the vector store once:
+All PDFs live in `public/documents/` and their text is compiled into `src/data/constitution.ts`:
 
-1. Sign in to the application
-2. Navigate to the **Manage** tab (only visible to admins)
-3. You'll see a "Setup RAG Vector Store" card
-4. Click **"Setup Vector Store"** button
-5. Wait for the process to complete (may take 1-2 minutes)
-6. Copy the `OPENAI_VECTOR_STORE_ID=...` value from the result
+| File | Contents |
+|---|---|
+| `CONSTITUTION.pdf` | Main MUSG Constitution |
+| `CONSTITUTION_BY-LAWS.pdf` | Constitutional By-Laws |
+| `BUDGET_APPROVAL_PROCEDURES.pdf` | Budget approval rules |
+| `ELECTION_RULES.pdf` | Election procedures |
+| `FINANCIAL_POLICIES.pdf` | Financial governance |
+| `SENATE_STANDING_RULES.pdf` | Senate operating rules |
+| `SENIOR_SPEAKER_SELECTION_PROCEDURES.pdf` | Speaker selection |
+| `UNIVERSITY_COMMITTEE_STUDENT_REPRESENTATION_PROCEDURES.pdf` | Committee representation |
 
-### 2. Add the Vector Store ID to Secrets
+To update documents: replace the PDFs and regenerate `src/data/constitution.ts` with the new text.
 
-The setup function will provide you with an instruction like:
+---
+
+## Precedent Articles (pgvector RAG)
+
+The `scrape-articles` edge function scrapes MUSG-relevant news from Marquette Wire and `today.marquette.edu`, generates embeddings, and stores them in Supabase for semantic search.
+
+### Pipeline
+
 ```
-OPENAI_VECTOR_STORE_ID=vs_abc123xyz789
-```
-
-You need to add this as a secret:
-1. The system has already created the secret for you
-2. The vector store ID should now be available
-
-### 3. Test the System
-
-Once setup is complete, test the AI Assistant:
-1. Go to the **AI Assistant** tab
-2. Ask questions like:
-   - "What are the main functions of MUSG?"
-   - "How are officers elected?"
-   - "What are the quorum requirements?"
-3. The AI should now provide accurate responses with specific citations from the documents
-
-## Documents Included
-
-The RAG system includes all constitution documents:
-
-1. **CONSTITUTION.pdf** - Main constitution
-2. **CONSTITUTION_BY-LAWS.pdf** - By-laws
-3. **BUDGET_APPROVAL_PROCEDURES.pdf** - Budget procedures
-4. **ELECTION_RULES.pdf** - Election rules
-5. **FINANCIAL_POLICIES.pdf** - Financial policies
-6. **SENATE_STANDING_RULES.pdf** - Senate rules
-7. **SENIOR_SPEAKER_SELECTION_PROCEDURES.pdf** - Speaker selection
-8. **UNIVERSITY_COMMITTEE_STUDENT_REPRESENTATION_PROCEDURES.pdf** - Committee procedures
-
-## How It Works
-
-### Old Approach (Text-in-Prompt)
-```
-User Question → Include entire constitution in prompt → AI generates answer
-Problems: Token limits, less accurate, expensive
+RSS feeds (Marquette Wire + today.marquette.edu)
+  → filter MUSG-relevant articles
+  → fetch full article HTML
+  → extract plain text (up to 6,000 chars)
+  → embed with text-embedding-3-small (OpenAI)
+  → upsert into precedent_articles table (pgvector, 1536-dim)
 ```
 
-### New Approach (RAG)
+### Similarity search
+
+The `search_precedent_articles` Postgres function performs cosine similarity search via an IVFFlat index:
+
+```sql
+SELECT * FROM search_precedent_articles(
+  query_embedding := <1536-dim vector>,
+  match_threshold := 0.70,
+  match_count     := 4
+);
 ```
-User Question → 
-  1. Search vector store for relevant sections →
-  2. Retrieve top relevant chunks →
-  3. Include only relevant chunks in prompt →
-  4. AI generates contextual answer with citations
-Benefits: No token limits, more accurate, cost-effective, better citations
+
+### Running the scraper
+
+The scraper is an admin-only edge function — it is not triggered from the UI. To run it:
+
+```sh
+curl -X POST https://<project-ref>.supabase.co/functions/v1/scrape-articles \
+  -H "Authorization: Bearer <service-role-key>"
 ```
 
-## Features Using RAG
+---
 
-All these features now use the RAG system:
+## AI Provider Configuration
 
-1. **AI Assistant (Constitution Chat)**: General Q&A about constitution
-2. **Amendment Validator**: Validates amendments against constitution
-3. **Weakness Analyzer**: Identifies problematic language
+All AI calls use an OpenAI-compatible chat completions endpoint, configured via environment variables. This makes it easy to swap providers without changing code.
 
-## Updating Documents
+| Secret | Description | Example |
+|---|---|---|
+| `LM_STUDIO_BASE_URL` | Base URL of your AI endpoint | `https://api.groq.com/openai/v1` |
+| `AI_API_KEY` | API key (leave unset for local LM Studio) | `gsk_...` |
+| `LM_STUDIO_MODEL` | Model name to request | `llama-3.1-70b-versatile` |
 
-If the constitution or supporting documents are updated:
+**Local development**: point `LM_STUDIO_BASE_URL` at a running LM Studio instance (`http://127.0.0.1:1234/v1`) and omit the API key.
 
-1. Replace the PDF files in `public/documents/`
-2. Run the vector store setup again (it will create a new vector store)
-3. Update the `OPENAI_VECTOR_STORE_ID` secret with the new ID
+**Production**: set these as Supabase edge function secrets.
 
-## Technical Details
+---
 
-- **Vector Store**: OpenAI's native vector store system
-- **Embeddings**: Automatically generated by OpenAI
-- **Model**: GPT-4o-mini with file_search tool
-- **Storage**: Documents stored in Supabase Storage (`documents` bucket)
-- **Expiration**: Vector store expires after 1 year of inactivity
+## Spending Limits
 
-## Troubleshooting
+A global token counter in the `ai_usage` table caps cumulative AI usage at **500,000 tokens** (~$5 at GPT-4o pricing). Both `analyze-constitution` and `generate-bill` check this before calling the AI and record actual usage from the API response afterward. The counter can be reset with:
 
-### "Vector store not initialized" error
-- Run the vector store setup as described in Step 1
-- Make sure you added the `OPENAI_VECTOR_STORE_ID` secret
-
-### Setup fails for specific documents
-- Check that all PDF files are present in `public/documents/`
-- Verify the Supabase storage bucket `documents` exists and is public
-- Check edge function logs for specific error messages
-
-### AI responses are not using documents
-- Verify the `OPENAI_VECTOR_STORE_ID` secret is set correctly
-- Check that the vector store setup completed successfully
-- Review edge function logs for any errors
-
-## Cost Considerations
-
-RAG with OpenAI has these costs:
-1. **Vector Store**: ~$0.10/GB/day for storage
-2. **File Search**: ~$0.05 per 1K tokens searched
-3. **GPT-4o-mini**: Standard API pricing
-
-For this constitution project with ~8 small PDFs, expected cost is <$1/month for storage + usage-based search costs.
-
-## Benefits Over Previous Approach
-
-✅ **Handles large documents**: No token limit issues  
-✅ **More accurate**: Retrieves exact relevant sections  
-✅ **Better citations**: AI can reference specific documents and sections  
-✅ **Faster responses**: Only processes relevant chunks  
-✅ **Cost-effective**: Pay only for what you search  
-✅ **Scalable**: Can add more documents without increasing prompt size
+```sql
+UPDATE ai_usage SET total_tokens = 0 WHERE id = 1;
+```
